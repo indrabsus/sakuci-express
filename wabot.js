@@ -1,32 +1,6 @@
-const express = require("express");
-const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
-const bodyParser = require("body-parser");
 const axios = require("axios");
 const fs = require('fs');
-const ppdbRoutes = require('./routes/ppdbRoutes');
-const { Sequelize } = require('sequelize');
-const models = require('./models');
-
-
-const app = express();
-app.use(bodyParser.json());
-
-(async () => {
-    try {
-      await models.sequelize.authenticate();
-      console.log('Koneksi ke database berhasil!');
-    } catch (error) {
-      console.error('Gagal terhubung ke database:', error);
-    }
-  })();
-
-app.use('/ppdb', ppdbRoutes);
-
-// Inisialisasi WhatsApp Client
-const client = new Client({
-    authStrategy: new LocalAuth(),
-});
 
 client.on("qr", (qr) => {
     console.log("QR Code received, scan using your phone.");
@@ -250,44 +224,3 @@ Silakan pilih salah satu opsi berikut dengan mengetik angka:
 });
 
 client.initialize();
-
-
-// API Endpoint
-app.get("/", (req, res) => {
-    
-    res.send("WhatsApp Bot sudah Berjalan di Server!");
-});
-
-app.post("/notifuser", async (req, res) => {
-    const { nomor, pesan } = req.body;
-    try {
-        const formattedNumber = `${nomor}@c.us`; // Format nomor
-        await client.sendMessage(formattedNumber, pesan);
-        res.status(200).send({ success: true, message: "Message sent successfully!" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ success: false, message: "Failed to send message!" });
-    }
-})
-
-
-
-// Kirim Pesan
-app.post("/kirimpesan", async (req, res) => {
-    const { nomor, pesan } = req.body;
-
-    try {
-        const formattedNumber = `${nomor}@c.us`; // Format nomor
-        await client.sendMessage(formattedNumber, pesan);
-        res.status(200).send({ success: true, message: "Message sent successfully!" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ success: false, message: "Failed to send message!" });
-    }
-});
-
-
-// Menjalankan server untuk bot
-app.listen(3000, () => {
-    console.log('Server running on port 3000');
-});
