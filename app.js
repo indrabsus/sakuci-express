@@ -240,7 +240,7 @@ client.initialize();
 // API Endpoint
 app.get("/", (req, res) => {
     
-    res.send("WhatsApp Bot API is running!");
+    res.send("WhatsApp Bot sudah Berjalan di Server!");
 });
 
 app.post("/notifuser", async (req, res) => {
