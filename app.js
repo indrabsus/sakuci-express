@@ -1,63 +1,16 @@
 const express = require("express");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
-const bodyParser = require("body-parser");
-const axios = require("axios");
 const fs = require('fs');
-// const ppdbRoutes = require('./routes/ppdbRoutes');
+const ppdbRoutes = require('./routes/ppdbRoutes');
+
+const axiosInstance = require('./config/axios');
 
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-// const mysql = require('mysql2');
-// const connection = mysql.createConnection({
-//   host: 'localhost',
-//   user: 'zakola_id',
-//   password: 'Sangkuriang2020@#@#',
-//   database: 'zakola_id'
-// });
-
-// connection.connect((err) => {
-//   if (err) {
-//     console.error('Database connection failed:', err.stack);
-//     return;
-//   }
-//   console.log('Connected to MySQL');
-// });
-
-// app.get('/users', (req, res) => {
-//   const query = 'SELECT * FROM users'; // Query untuk mengambil data dari tabel users
-//   connection.query(query, (err, results) => {
-//     if (err) {
-//       res.status(500).json({
-//         status: 'error',
-//         message: 'Gagal mengambil data dari tabel users',
-//         error: err.message,
-//       });
-//       return;
-//     }
-
-//     res.status(200).json({
-//       status: 'success',
-//       data: results,
-//     });
-//   });
-// });
-
-
-
-
-// (async () => {
-//     try {
-//       await models.sequelize.authenticate();
-//       console.log('Koneksi ke database berhasil!');
-//     } catch (error) {
-//       console.error('Gagal terhubung ke database:', error);
-//     }
-//   })();
-
-// app.use('/ppdb', ppdbRoutes);
+app.use('/ppdb', ppdbRoutes)
 
 // Inisialisasi WhatsApp Client
 const client = new Client({
@@ -130,9 +83,9 @@ const ppdbQuestions = [
     { key: 'kab_kota', question: 'Apa nama kabupaten/kota tempat tinggal Anda?' },
     { key: 'nisn', question: 'Apa NISN Anda?' },
     { key: 'nik_siswa', question: 'Apa NIK siswa Anda?' },
-    { key: 'nohp', question: 'Apa nomor HP Anda? (Format: 08xxxxxxxxxx)' },
-    { key: 'ayah', question: 'Apa nama ayah Anda?' },
-    { key: 'ibu', question: 'Apa nama ibu Anda?' },
+    { key: 'no_hp', question: 'Apa nomor HP Anda? (Format: 08xxxxxxxxxx)' },
+    { key: 'nama_ayah', question: 'Apa nama ayah Anda?' },
+    { key: 'nama_ibu', question: 'Apa nama ibu Anda?' },
     { key: 'asal_sekolah', question: 'Apa asal sekolah Anda?' },
     { key: 'minat_jurusan1', question: 'Pilih minat jurusan pertama Anda (ketik angka):\n1. Perkantoran (MPLB)\n2. Manajemen Bisnis (BDP)\n3. Komputer Software (PPLG)\n4. Manajemen Keuangan (AKL)' },
     { key: 'minat_jurusan2', question: 'Pilih minat jurusan kedua Anda (ketik angka):\n1. Perkantoran (MPLB)\n2. Manajemen Bisnis (BDP)\n3. Komputer Software (PPLG)\n4. Manajemen Keuangan (AKL)' },
@@ -264,25 +217,28 @@ Silakan pilih salah satu opsi berikut dengan mengetik angka:
 }
 
     } else if (userSession.step === 'confirmation') {
-        if (pesan.toLowerCase() === 'y') {
-            try {
-                const response = await axios.post("http://api.sakuci.id/api/daftarppdb", userSession.data);
-                message.reply("Pendaftaran PPDB Anda telah berhasil dikirim! Terima kasih.");
-                userSession.step = null;
-                userSession.data = {};
-            } catch (error) {
-                message.reply("Terjadi kesalahan saat mengirim data. Coba lagi nanti.");
-                userSession.step = null;
-                userSession.data = {};
-            }
-        } else if (pesan.toLowerCase() === 'n') {
-            message.reply("Pendaftaran Anda dibatalkan.");
+    if (pesan.toLowerCase() === 'y') {
+        try {
+            // Kirim data ke server API
+            const response = await axiosInstance.post('/ppdb/daftar', userSession.data);
+            message.reply("✅ Data Anda berhasil dikirim. Terima kasih telah mendaftar!");
+            // Reset sesi pengguna
             userSession.step = null;
             userSession.data = {};
-        } else {
-            message.reply("Pilihan tidak valid. Ketik 'y' untuk kirim atau 'n' untuk batal.");
+        } catch (error) {
+            message.reply(error.message);
+            console.error("Error sending data:", error.message);
         }
+    } else if (pesan.toLowerCase() === 'n') {
+        message.reply("Proses pendaftaran dibatalkan.");
+        // Reset sesi pengguna
+        userSession.step = null;
+        userSession.data = {};
+    } else {
+        message.reply("Masukkan tidak valid. Ketik 'y' untuk kirim atau 'n' untuk batal.");
     }
+}
+
 });
 
 client.initialize();
