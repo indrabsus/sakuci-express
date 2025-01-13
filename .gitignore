@@ -3,3 +3,4 @@
 node_modules
 qrcode.png
 config/config.json
+.htaccess
