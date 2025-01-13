@@ -4,24 +4,60 @@ const qrcode = require("qrcode");
 const bodyParser = require("body-parser");
 const axios = require("axios");
 const fs = require('fs');
-const ppdbRoutes = require('./routes/ppdbRoutes');
-const { Sequelize } = require('sequelize');
-const models = require('./models');
+// const ppdbRoutes = require('./routes/ppdbRoutes');
 
 
 const app = express();
 app.use(bodyParser.json());
 
-(async () => {
-    try {
-      await models.sequelize.authenticate();
-      console.log('Koneksi ke database berhasil!');
-    } catch (error) {
-      console.error('Gagal terhubung ke database:', error);
-    }
-  })();
+// const mysql = require('mysql2');
+// const connection = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'zakola_id',
+//   password: 'Sangkuriang2020@#@#',
+//   database: 'zakola_id'
+// });
 
-app.use('/ppdb', ppdbRoutes);
+// connection.connect((err) => {
+//   if (err) {
+//     console.error('Database connection failed:', err.stack);
+//     return;
+//   }
+//   console.log('Connected to MySQL');
+// });
+
+// app.get('/users', (req, res) => {
+//   const query = 'SELECT * FROM users'; // Query untuk mengambil data dari tabel users
+//   connection.query(query, (err, results) => {
+//     if (err) {
+//       res.status(500).json({
+//         status: 'error',
+//         message: 'Gagal mengambil data dari tabel users',
+//         error: err.message,
+//       });
+//       return;
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       data: results,
+//     });
+//   });
+// });
+
+
+
+
+// (async () => {
+//     try {
+//       await models.sequelize.authenticate();
+//       console.log('Koneksi ke database berhasil!');
+//     } catch (error) {
+//       console.error('Gagal terhubung ke database:', error);
+//     }
+//   })();
+
+// app.use('/ppdb', ppdbRoutes);
 
 // Inisialisasi WhatsApp Client
 const client = new Client({
