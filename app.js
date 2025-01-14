@@ -1,7 +1,7 @@
 const express = require("express");
 require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
-// const protectedRoutes = require('./routes/protectedRoutes');
+const protectedRoutes = require('./routes/protectedRoutes');
 const ppdbRoutes = require('./routes/ppdbRoutes');
 
 const client = require('./wabot');
@@ -13,7 +13,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 
 
-// app.use('/api', protectedRoutes);
+app.use('/api', protectedRoutes);
 
 app.use('/ppdb', ppdbRoutes)
 
