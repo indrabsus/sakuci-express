@@ -1,8 +1,12 @@
 const { Sequelize } = require('sequelize');
 
+const dbHost = process.env.DB_HOST;
+const dbUser = process.env.DB_USERNAME;
+const dbPass = process.env.DB_PASSWORD;
+const dbName = process.env.DB_NAME;
 // Konfigurasi koneksi Sequelize
-const sequelize = new Sequelize('zakola_id', 'zakola_id', 'Sangkuriang2020@#@#', {
-  host: 'localhost',
+const sequelize = new Sequelize(dbName, dbUser, dbPass, {
+  host: dbHost,
   dialect: 'mysql',
   logging: false,
   define: {

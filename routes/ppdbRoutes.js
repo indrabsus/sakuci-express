@@ -21,7 +21,10 @@ const formatNoHp = (no_hp) => {
 // Rute untuk mendapatkan semua data siswa PPDB
 router.get('/siswa', async (req, res) => {
   try {
-    const siswa = await SiswaPpdb.findAll(); // Mengambil semua data dari tabel siswa_ppdb
+   const tahunSekarang = new Date().getFullYear();
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun: tahunSekarang },
+    }); // Mengambil semua data dari tabel siswa_ppdb
     res.status(200).json({
       status: 'success',
       message: 'Data siswa berhasil diambil.',

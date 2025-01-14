@@ -5,3 +5,4 @@ qrcode.png
 config/config.json
 .htaccess
 .git
+.env
