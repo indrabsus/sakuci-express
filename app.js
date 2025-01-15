@@ -3,6 +3,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const protectedRoutes = require('./routes/protectedRoutes');
 const ppdbRoutes = require('./routes/ppdbRoutes');
+// const siswaRoutes = require('./routes/siswaRoutes');
+const cors = require('cors');
 
 const client = require('./wabot');
 
@@ -10,12 +12,14 @@ const app = express();
 app.use(express.json());
 
 
+app.use(cors());
 app.use('/api/auth', authRoutes);
 
 
 app.use('/api', protectedRoutes);
 
-app.use('/ppdb', ppdbRoutes)
+app.use('/ppdb', ppdbRoutes);
+// app.use('/siswa', siswaRoutes);
 
 client.initialize();
 
@@ -23,7 +27,7 @@ client.initialize();
 app.get("/", (req, res) => {
     
     res.json({
-        "status": "Server Ready!"
+        "status": "Server Ready Bro CEK!"
     });
 });
 

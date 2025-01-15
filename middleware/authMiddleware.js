@@ -1,6 +1,15 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+
+
+// app.use(cors({
+//   origin: 'http://localhost:3000', // Ganti dengan URL frontend
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   allowedHeaders: ['Content-Type', 'Authorization']
+// }));
+
+
 const authMiddleware = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', ''); // Ambil token dari header Authorization
 
