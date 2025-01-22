@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database'); // Pastikan path sesuai dengan konfigurasi Anda
+const Role = require('./Role');
 
 const User = sequelize.define('User', {
   id: {
@@ -44,5 +45,7 @@ const User = sequelize.define('User', {
   timestamps: false, // Karena Anda sudah menentukan `created_at` dan `updated_at`
   underscored: true, // Gunakan format snake_case
 });
+
+User.belongsTo(Role, { foreignKey: 'id_role', as: 'role' });
 
 module.exports = User;
