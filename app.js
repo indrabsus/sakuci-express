@@ -6,6 +6,7 @@ const siswaRoutes = require('./routes/siswaRoutes');
 const kelasRoutes = require('./routes/kelasRoutes');
 const sumatifRoutes = require('./routes/sumatifRoutes');
 const agendaRoutes = require('./routes/agendaRoutes');
+const roleRoutes = require('./routes/roleRoutes');
 const cors = require('cors');
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.use(cors());
 app.use('/api/auth', authRoutes);
+app.use('/role', roleRoutes);
 
 app.use('/ppdb', ppdbRoutes);
 app.use('/siswa', siswaRoutes);

@@ -1,11 +1,5 @@
-const { Op, fn, col, literal, Sequelize  } = require('sequelize');
-const MapelKelas = require('../models/MapelKelas');
-const MataPelajaran = require('../models/MataPelajaran');
-const DataSiswa = require('../models/DataSiswa');
-const Kelas = require('../models/Kelas');
-const Jurusan = require('../models/Jurusan');
-const User = require('../models/User');
-const Materi = require('../models/Materi');
+const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
+const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi} = require('../models');
 
 // Fungsi isiAgenda
 const isiAgenda = async (req, res) => {
@@ -131,59 +125,37 @@ const prosesAgenda = async (req, res) => {
 
 // Fungsi absenListSiswa
 const absenListSiswa = async (req, res) => {
- const { id_materi } = req.params;
+  const { id_materi } = req.params;
 
   try {
     // Melakukan query dengan left join menggunakan Sequelize
     const data = await Materi.findAll({
-      include: [
-        {
-          model: MapelKelas,
-          as: 'mapel_kelas',
-          include: [
-            {
-              model: Kelas,
-              as: 'kelas',
-              include: [
-                {
-                  model: Jurusan,
-                  as: 'jurusan'
-                },
-                {
-          model: DataSiswa,
-          as: 'data_siswa',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              where: {
-                acc: 'y'
-              }
-            }
-          ]
-        }
-              ]
-            },
-            {
-              model: MataPelajaran,
-              as: 'mata_pelajaran'
-            }
-          ]
-        },
-        
-      ],
-      where: {
-        id_materi
-      },
-      order: [['data_siswa', 'nama_lengkap', 'ASC']],
-      attributes: [
-        'materi', 'created_at', 'id_materi',
-        [Sequelize.col('data_siswa.nama_lengkap'), 'nama_lengkap'],
-        [Sequelize.col('kelas.tingkat'), 'tingkat'],
-        [Sequelize.col('kelas.singkatan'), 'singkatan'],
-        [Sequelize.col('kelas.nama_kelas'), 'nama_kelas'],
-        [Sequelize.col('penilaian'), 'penilaian']
-      ]
+      where: { id_materi },
+      include: [{
+        model: MapelKelas, as: 'mapel_kelas',
+        include: [{
+          model: Kelas, as: "kelas",
+          include: [{
+            model: Jurusan, as: "jurusan"
+          }, {
+            model: DataSiswa, as: "data_siswa",
+            include: [{
+              model: User, as: "user",
+              where: { acc: "y" }
+            }],
+            order: [['nama_lengkap', 'ASC']]  // Urutkan berdasarkan nama_lengkap di level DataSiswa
+          }]
+        }, {
+          model: MataPelajaran, as: 'mata_pelajaran',
+        }]
+      }],
+      order: [[
+        { model: MapelKelas, as: 'mapel_kelas' },  // Pastikan model mapel_kelas ada
+        { model: Kelas, as: 'kelas' },  // Pastikan kelas diurutkan jika perlu
+        { model: DataSiswa, as: 'data_siswa' },
+        'nama_lengkap',  // Urutkan berdasarkan nama_lengkap
+        'ASC'  // Ascending
+      ]]
     });
 
     return res.status(200).json({
@@ -198,5 +170,6 @@ const absenListSiswa = async (req, res) => {
     });
   }
 };
+
 
 module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa };
