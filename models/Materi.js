@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     keterangan: {
       type: DataTypes.ENUM('1', '2', '3'),
-      allowNull: false,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

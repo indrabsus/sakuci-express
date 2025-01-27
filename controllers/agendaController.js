@@ -1,6 +1,6 @@
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi} = require('../models');
-
+const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi, AbsenSiswa} = require('../models');
+const moment = require('moment-timezone');
 // Fungsi isiAgenda
 const isiAgenda = async (req, res) => {
   try {
@@ -84,7 +84,10 @@ const getMateri = async (req, res) => {
 // Fungsi prosesAgenda
 const prosesAgenda = async (req, res) => {
   try {
-    const { materi, tingkat, id_mapelkelas } = req.body;
+    const { materi, tingkat, id_mapelkelas, tahun } = req.params;
+
+    // Check if id_mapelkelas is provided
+    
     const currentMonth = new Date().getMonth() + 1;
     const semester = [7, 8, 9, 10, 11, 12].includes(currentMonth) ? 'ganjil' : 'genap';
 
@@ -97,7 +100,7 @@ const prosesAgenda = async (req, res) => {
         created_at: { [Op.between]: [startOfDay, endOfDay] },
       },
     });
-
+    
     if (count > 0) {
       await Materi.update(
         { materi },
@@ -110,6 +113,8 @@ const prosesAgenda = async (req, res) => {
 
     await Materi.create({
       id_mapelkelas,
+      tahun_pelajaran: tahun,
+      keterangan: null,
       materi,
       semester,
       penilaian: 'n',
@@ -122,6 +127,7 @@ const prosesAgenda = async (req, res) => {
     return res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
   }
 };
+
 
 // Fungsi absenListSiswa
 const absenListSiswa = async (req, res) => {
@@ -171,5 +177,52 @@ const absenListSiswa = async (req, res) => {
   }
 };
 
+async function prosesAbsen(req, res) {
+    const { id_user, id_materi, waktu_agenda, keterangan } = req.params;
+    
+    const waktuku = moment.utc(waktu_agenda).tz('Asia/Jakarta').format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+    
+    try {
+        // Cari data yang sudah ada berdasarkan kondisi
+        let existingData = await AbsenSiswa.findOne({
+            where: {
+                id_materi: id_materi,
+                id_user: id_user,
+                waktu: waktuku,
+            },
+        });
 
-module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa };
+        if (existingData) {
+            // Update hanya jika keterangan berbeda
+            if (existingData.keterangan !== keterangan) {
+                await existingData.update({ keterangan: keterangan });
+            }
+        } else {
+            // Buat data baru jika tidak ditemukan
+            existingData = await AbsenSiswa.create({
+                id_materi: id_materi,
+                id_user: id_user,
+                waktu: waktuku,
+                keterangan: keterangan,
+            });
+        }
+
+        // Kirim respon JSON
+        return res.status(200).json({
+            data: existingData,
+            status: 200,
+        });
+    } catch (error) {
+        // Tangani error
+        console.error(error);
+        return res.status(500).json({
+            message: waktu_agenda,
+            status: 500,
+        });
+    }
+}
+
+
+
+
+module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen };

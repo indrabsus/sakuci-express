@@ -30,7 +30,7 @@ module.exports = (sequelize, DataTypes, models) => {
   // Relasi dengan MasterPpdb
   JurusanPpdb.associate = (models) => {
     // Contoh relasi (tambah relasi sesuai kebutuhan)
-    JurusanPpdb.hasMany(models.MasterPpdb, { foreignKey: 'id_jurusan', as: 'master_ppdb' });
+    JurusanPpdb.belongsTo(models.MasterPpdb, { foreignKey: 'id_ppdb', as: 'master_ppdb' });
   };
 
   return JurusanPpdb;

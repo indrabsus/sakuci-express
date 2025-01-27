@@ -8,6 +8,12 @@ const dbName = process.env.DB_NAME;
 const sequelize = new Sequelize(dbName, dbUser, dbPass, {
   host: dbHost,
   dialect: 'mysql',
+  timezone: '+07:00', // Asia/Jakarta timezone
+  dialectOptions: {
+    useUTC: false, // Jangan gunakan UTC
+    dateStrings: true, // Simpan waktu sebagai string
+    typeCast: true, // Konversi waktu otomatis
+  },
   logging: false,
   define: {
     timestamps: true, // Aktifkan timestamps
