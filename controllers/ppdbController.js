@@ -1,5 +1,8 @@
-const {SiswaPpdb, JurusanPpdb, MasterPpdb} = require('../models'); // Pastikan path benar
+const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb} = require('../models'); // Pastikan path benar
+const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
+const moment = require('moment');
+
 
 const formatNoHp = (no_hp) => {
   // Hapus semua karakter yang tidak diperlukan (spasi, tanda minus, tanda plus)
@@ -17,11 +20,74 @@ const formatNoHp = (no_hp) => {
   return formatted;
 };
 
+const logPpdb = async (req, res) => {
+  try {
+    const { tahun } = req.params; // Ambil tahun dari parameter URL
+
+    if (!tahun || isNaN(tahun)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tahun tidak valid atau tidak diberikan.',
+      });
+    }
+
+    const startDate = new Date(`${tahun}-01-01T00:00:00Z`);
+    const endDate = new Date(`${tahun}-12-31T23:59:59Z`);
+
+    const siswa = await LogPpdb.findAll({
+      where: {
+        created_at: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      include: [{
+        model: SiswaPpdb, as: 'siswa_ppdb'
+      }]
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: `Data siswa tahun ${tahun} berhasil diambil.`,
+      data: siswa,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data siswa.',
+      error: error.message,
+    });
+  }
+}
+
+
 const dataSiswa = async (req, res) => {
     try {
      const tahunSekarang = new Date().getFullYear();
       const siswa = await SiswaPpdb.findAll({
         where: { tahun: tahunSekarang },
+      }); // Mengambil semua data dari tabel siswa_ppdb
+      res.status(200).json({
+        status: 'success',
+        message: 'Data siswa berhasil diambil.',
+        data: siswa,
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Gagal mengambil data siswa.',
+        error: error.message,
+      });
+    }
+  }
+const detailSiswa = async (req, res) => {
+    try {
+    const {id_siswa} = req.params;
+     const tahunSekarang = new Date().getFullYear();
+      const siswa = await SiswaPpdb.findAll({
+          include: [{
+              model: LogPpdb, as: 'log_ppdb'
+          }],
+        where: { tahun: tahunSekarang, id_siswa: id_siswa },
       }); // Mengambil semua data dari tabel siswa_ppdb
       res.status(200).json({
         status: 'success',
@@ -131,4 +197,108 @@ const dataSiswa = async (req, res) => {
  }
 }
 
-module.exports = { dataSiswa, regisSiswa, jurusan };
+const bayarDaftar = async (req, res) => {
+    const { jenis, id_siswa } = req.body;
+    
+    if (!jenis) {
+        return res.status(400).json({ error: 'Jenis is required' });
+    }
+
+    try {
+        const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
+        if (!siswa) {
+            return res.status(404).json({ error: 'Siswa not found' });
+        }
+
+        const noInvoice = `D-${jenis.toUpperCase()}-${moment().format('DDMMYYYYH')}${siswa.id_siswa}`;
+        const cek = await LogPpdb.count({ where: { no_invoice: noInvoice } });
+        
+        if (cek < 1) {
+            if (siswa.bayar_daftar === 'n') {
+                const data = await MasterPpdb.findOne({ where: { tahun: moment().format('YYYY') } });
+                
+                if (data) {
+                    await LogPpdb.create({
+                        id_siswa: siswa.id_siswa,
+                        nominal: data.daftar,
+                        no_invoice: `D-${jenis.toUpperCase()}-${moment().format('DDMMYYYYH')}-${siswa.id_siswa.substring(0, 3)}`,
+                        jenis: 'd'
+                    });
+                    
+                    await SiswaPpdb.update({ bayar_daftar: 'y' }, { where: { id_siswa } });
+                    return res.json({ message: 'Berhasil daftar!' });
+                }
+            }
+        } else {
+            return res.status(400).json({ error: 'Tunggu beberapa saat!' });
+        }
+    } catch (error) {
+    console.error("Error during registration:", error);
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+}
+}
+const bayarPpdb = async (req, res) => {
+  const { id_siswa, nom, jenis } = req.body;  // Mengambil data dari request body
+
+  try {
+      const nom2 = await LogPpdb.sum('nominal', {where:{"id_siswa":id_siswa, "jenis": "p"}})
+    // 1. Cek apakah no_invoice sudah ada
+    const noInvoice = `P-${jenis.toUpperCase()}-${moment().format('DDMMYYYYHH')}${id_siswa}`;
+    const existingPayment = await LogPpdb.count({
+      where: { no_invoice: noInvoice }
+    });
+
+    // 2. Ambil data MasterPpdb berdasarkan tahun
+    const masterPpdb = await MasterPpdb.findOne({
+      where: { tahun: moment().year() }
+    });
+
+    if (!masterPpdb) {
+      return res.status(400).json({ message: 'Master data PPDB tidak ditemukan!' });
+    }
+
+    // 3. Total nominal yang dimasukkan
+    const inputNow = nom + nom2;
+
+    if (inputNow > masterPpdb.ppdb) {
+      return res.status(400).json({ message: 'Melebihi jumlah nominal!' });
+    }
+
+    // 4. Jika no_invoice belum ada, simpan data
+    if (existingPayment < 1) {
+      const noInvoiceCreated = `P-${jenis.toUpperCase()}-${moment().format('DDMMYYYYHH')}-${id_siswa.substring(0, 3)}`;
+      const tampung = await LogPpdb.create({
+        id_siswa,
+        nominal: nom,
+        no_invoice: noInvoiceCreated,
+        jenis: 'p',
+      });
+
+      return res.status(200).json({ message: 'Berhasil membayar!', data: tampung });
+    } else {
+      return res.status(400).json({ message: 'Tunggu beberapa saat!' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan!' });
+  }
+}
+
+const deleteLog = async (req, res) => {
+    const { jenis, id_siswa, id_log } = req.body;
+    
+    try {
+        if (jenis === 'd') {
+            await SiswaPpdb.update({ bayar_daftar: 'n' }, { where: { id_siswa } });
+        }
+        
+        await LogPpdb.destroy({ where: { id_log } });
+        return res.json({ message: 'Data berhasil dihapus' });
+    } catch (error) {
+        console.error("Error deleting log:", error);
+        return res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+}
+
+
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb };

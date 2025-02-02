@@ -86,6 +86,9 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true, // Created_at dan updated_at otomatis
     underscored: true, // Menggunakan format snake_case untuk kolom
   });
+  SiswaPpdb.associate = (models) => {
+    SiswaPpdb.hasMany(models.LogPpdb, { foreignKey: 'id_siswa', as: 'log_ppdb' });
+  };
 
   return SiswaPpdb;
 };

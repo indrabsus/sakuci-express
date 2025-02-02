@@ -28,13 +28,13 @@ app.use('/agenda', agendaRoutes);
 app.get("/", (req, res) => {
     
     res.json({
-        "status": "Server Ready Bro CEK!"
+        "status": "Server Development Ready...!"
     });
 });
 
 
 
 // Menjalankan server untuk bot
-app.listen(3000, () => {
-    console.log('Server running on port 3000');
+app.listen(3090, () => {
+    console.log('Server running on port 3090');
 });

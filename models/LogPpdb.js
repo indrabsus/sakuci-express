@@ -1,22 +1,26 @@
 module.exports = (sequelize, DataTypes) => {
-  const Soal = sequelize.define('Soal', {
-    id_soal: {
+  const LogPpdb = sequelize.define('LogPpdb', {
+    id_log: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       allowNull: false,
     },
-    id_kategori: {
+    id_siswa: {
       type: DataTypes.UUID,
       allowNull: false,
     },
-    soal: {
-      type: DataTypes.TEXT,
+    nominal: {
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
-    gambar: {
+    no_invoice: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
+    },
+    jenis: {
+      type: DataTypes.ENUM('d', 'l', 'p'),
+      allowNull: false,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -29,19 +33,15 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
   }, {
-    tableName: 'soal',
+    tableName: 'log_ppdb',
     timestamps: false,
     underscored: true,
   });
 
-  Soal.associate = (models) => {
-    Soal.belongsTo(models.KategoriSoal, {
-      foreignKey: 'id_kategori',
-      as: 'kategori_soal',
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
-    });
+  // Relasi
+  LogPpdb.associate = (models) => {
+    LogPpdb.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa_ppdb', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
   };
 
-  return Soal;
+  return LogPpdb;
 };
