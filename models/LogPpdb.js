@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('d', 'l', 'p'),
       allowNull: false,
     },
+    petugas: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,

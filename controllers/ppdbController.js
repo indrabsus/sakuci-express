@@ -40,6 +40,7 @@ const logPpdb = async (req, res) => {
           [Op.between]: [startDate, endDate]
         }
       },
+      order: [['created_at', 'DESC']],
       include: [{
         model: SiswaPpdb, as: 'siswa_ppdb'
       }]
@@ -62,23 +63,29 @@ const logPpdb = async (req, res) => {
 
 const dataSiswa = async (req, res) => {
     try {
-     const tahunSekarang = new Date().getFullYear();
-      const siswa = await SiswaPpdb.findAll({
-        where: { tahun: tahunSekarang },
-      }); // Mengambil semua data dari tabel siswa_ppdb
-      res.status(200).json({
-        status: 'success',
-        message: 'Data siswa berhasil diambil.',
-        data: siswa,
-      });
+        const tahunSekarang = new Date().getFullYear();
+        const siswa = await SiswaPpdb.findAll({
+            include: [{
+                model: LogPpdb, as: 'log_ppdb'
+            }],
+            where: { tahun: tahunSekarang },
+            order: [['created_at', 'DESC']], // Order by created_at ascending
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Data siswa berhasil diambil.',
+            data: siswa,
+        });
     } catch (error) {
-      res.status(500).json({
-        status: 'error',
-        message: 'Gagal mengambil data siswa.',
-        error: error.message,
-      });
+        res.status(500).json({
+            status: 'error',
+            message: 'Gagal mengambil data siswa.',
+            error: error.message,
+        });
     }
-  }
+}
+
 const detailSiswa = async (req, res) => {
     try {
     const {id_siswa} = req.params;
@@ -198,7 +205,7 @@ const detailSiswa = async (req, res) => {
 }
 
 const bayarDaftar = async (req, res) => {
-    const { jenis, id_siswa } = req.body;
+    const { jenis, id_siswa, petugas } = req.body;
     
     if (!jenis) {
         return res.status(400).json({ error: 'Jenis is required' });
@@ -222,7 +229,8 @@ const bayarDaftar = async (req, res) => {
                         id_siswa: siswa.id_siswa,
                         nominal: data.daftar,
                         no_invoice: `D-${jenis.toUpperCase()}-${moment().format('DDMMYYYYH')}-${siswa.id_siswa.substring(0, 3)}`,
-                        jenis: 'd'
+                        jenis: 'd',
+                        petugas: petugas
                     });
                     
                     await SiswaPpdb.update({ bayar_daftar: 'y' }, { where: { id_siswa } });
