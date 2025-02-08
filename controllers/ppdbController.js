@@ -160,7 +160,7 @@ const detailSiswa = async (req, res) => {
       try {
         const kirimpesan = await axios.post(process.env.API_WA, {
           nomor: no_hpFormatted,
-          pesan: `Terima Kasih ${nama_lengkap} sudah mendaftar di PPDB SMK Sangkuriang 1 Cimahi, silakan ketik ok untuk info lebih lanjut!`,
+          pesan: `Terima Kasih ${nama_lengkap} sudah mendaftar di PPDB SMK Sangkuriang 1 Cimahi, silakan hubungi +62 856-2457-8718 (Pak Dwi) atau ketik 'hai' untuk informasi sekolah!`,
         });
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);

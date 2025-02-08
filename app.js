@@ -35,6 +35,6 @@ app.get("/", (req, res) => {
 
 
 // Menjalankan server untuk bot
-app.listen(3090, () => {
-    console.log('Server running on port 3090');
+app.listen(`${process.env.PORT}`, () => {
+    console.log('Server running');
 });
