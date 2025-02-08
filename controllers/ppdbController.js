@@ -63,12 +63,16 @@ const logPpdb = async (req, res) => {
 
 const dataSiswa = async (req, res) => {
     try {
-        const tahunSekarang = new Date().getFullYear();
+        const {tahun, status} = req.params;
+         const whereClause = { tahun};
+    if (status) {
+      whereClause.bayar_daftar = status; // Tambahkan status jika ada
+    }
         const siswa = await SiswaPpdb.findAll({
             include: [{
                 model: LogPpdb, as: 'log_ppdb'
             }],
-            where: { tahun: tahunSekarang },
+            where: whereClause,
             order: [['created_at', 'DESC']], // Order by created_at ascending
         });
 
@@ -88,13 +92,12 @@ const dataSiswa = async (req, res) => {
 
 const detailSiswa = async (req, res) => {
     try {
-    const {id_siswa} = req.params;
-     const tahunSekarang = new Date().getFullYear();
+    const {id_siswa, tahun} = req.params;
       const siswa = await SiswaPpdb.findAll({
           include: [{
               model: LogPpdb, as: 'log_ppdb'
           }],
-        where: { tahun: tahunSekarang, id_siswa: id_siswa },
+        where: { tahun, id_siswa: id_siswa },
       }); // Mengambil semua data dari tabel siswa_ppdb
       res.status(200).json({
         status: 'success',
@@ -246,7 +249,7 @@ const bayarDaftar = async (req, res) => {
 }
 }
 const bayarPpdb = async (req, res) => {
-  const { id_siswa, nom, jenis } = req.body;  // Mengambil data dari request body
+  const { id_siswa, nom, jenis, petugas } = req.body;  // Mengambil data dari request body
 
   try {
       const nom2 = await LogPpdb.sum('nominal', {where:{"id_siswa":id_siswa, "jenis": "p"}})
@@ -280,6 +283,7 @@ const bayarPpdb = async (req, res) => {
         nominal: nom,
         no_invoice: noInvoiceCreated,
         jenis: 'p',
+        petugas
       });
 
       return res.status(200).json({ message: 'Berhasil membayar!', data: tampung });
