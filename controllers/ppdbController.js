@@ -1,8 +1,34 @@
-const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb} = require('../models'); // Pastikan path benar
+const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = require('../models'); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
 const moment = require('moment');
 
+const kelas = async (req, res) => {
+    const {tahun} = req.params;
+  try {
+    const data = await KelasPpdb.findAll({
+      include: [{ model: JurusanPpdb, as: 'jurusan_ppdb',required: true,
+      
+          include:[{
+              model: MasterPpdb, as: 'master_ppdb',
+              where: {tahun}
+          }]
+      }]
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Data berhasil diambil.',
+      data
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data kelas.',
+      error: error.message,
+    });
+  }
+};
 
 const formatNoHp = (no_hp) => {
   // Hapus semua karakter yang tidak diperlukan (spasi, tanda minus, tanda plus)
@@ -160,7 +186,22 @@ const detailSiswa = async (req, res) => {
       try {
         const kirimpesan = await axios.post(process.env.API_WA, {
           nomor: no_hpFormatted,
-          pesan: `Terima Kasih ${nama_lengkap} sudah mendaftar di PPDB SMK Sangkuriang 1 Cimahi, silakan hubungi +62 856-2457-8718 (Pak Dwi) atau ketik 'hai' untuk informasi sekolah!`,
+          pesan: `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
+
+Untuk tahap selanjutnya yaitu membayar Administrasi Pendaftaran Rp. 150.000, dapat hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi melalui panitia PPDB atau Transfer ke No Rek.
+BSI : 7207310063
+a.n Yayasan Pendidikan Dayang Sumbi Jaya Lestari.
+
+Mohon untuk konfirmasi ke salah satu nomor dibawah ini :
+Pak Dwi : +62 856-2457-8718
+Bu Ati : +62 822-9530-5320
+Pa Anas : +62 812-5353-1933
+Bu Minati : +62 878-2211-1349
+
+Terima Kasih 
+Panitia SPMB SMK Sangkuriang 1 Cimahi
+
+Silakan ketik "hai" untuk informasi dari WhatsApp BOT.`,
         });
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
@@ -312,5 +353,76 @@ const deleteLog = async (req, res) => {
     }
 }
 
+const postKelas = async (req, res) => {
+    const { id_siswa, id_kelas } = req.body;
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb };
+    try {
+        // Cek apakah siswa sudah ada berdasarkan id_siswa saja
+        let siswa = await SiswaBaru.findOne({ where: { id_siswa } });
+
+        if (!siswa) {
+            // Jika tidak ada, buat data baru
+            siswa = await SiswaBaru.create({ id_siswa, id_kelas });
+            res.status(201).json({
+                status: 'success',
+                message: "Data berhasil ditambahkan.",
+                siswa
+            });
+        } else {
+            // Jika sudah ada, update data kelasnya
+            await SiswaBaru.update(
+                { id_kelas }, // Data yang diperbarui
+                { where: { id_siswa } } // Kondisi update
+            );
+
+            // Ambil ulang data terbaru
+            siswa = await SiswaBaru.findOne({ where: { id_siswa } });
+
+            res.status(200).json({
+                status: 'success',
+                message: "Data berhasil diperbarui.",
+                siswa
+            });
+        }
+    } catch (error) {
+        console.error("Error:", error.message);
+        res.status(500).json({
+            status: "error",
+            message: "Terjadi kesalahan pada server",
+            error: error.message
+        });
+    }
+};
+
+const tampilKelas = async(req, res) => {
+    const {id_siswa} = req.params;
+    try {
+        const data = await SiswaBaru.findOne({
+            where:{id_siswa},
+            include: [{
+                model: KelasPpdb, as: 'kelas_ppdb'
+            }]
+        })
+        if (!data) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Data siswa tidak ditemukan.'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Data kelas berhasil diambil.',
+            data
+        });
+    } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data kelas.',
+      error: error.message,
+    });
+  }
+}
+
+
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas };
