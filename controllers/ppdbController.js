@@ -28,7 +28,125 @@ const kelas = async (req, res) => {
       error: error.message,
     });
   }
+}
+
+const kelasDetail = async (req, res) => {
+      const {id_kelas} = req.params;
+    try {
+        let whereCondition = {}; // Default tanpa filter
+
+    if (id_kelas) {
+      whereCondition.id_kelas = id_kelas; // Filter tahun hanya jika ada parameter
+    }
+//   const tahunSekarang = new Date().getFullYear();
+  const data = await KelasPpdb.findOne({
+      where:whereCondition,
+      include:[{
+          model: JurusanPpdb, as: "jurusan_ppdb"
+      }]
+  })
+   res.status(200).json({
+     status: 'success',
+     message: 'Data siswa berhasil diambil.',
+     data: data,
+   });
+ } catch (error) {
+   res.status(500).json({
+     status: 'error',
+     message: 'Gagal mengambil data.',
+     error: error.message,
+   });
+ }
+}
+
+const createKelas = async(req, res) => {
+    const {nama_kelas, id_jurusan, max} = req.body
+    try{
+        const data = await KelasPpdb.create({
+            nama_kelas, id_jurusan, max
+        })
+        if(!data){
+            res.status(404).json({
+                status: 'error',
+                message: 'Gagal menambahkan data',
+            })
+        }
+        res.status(200).json({
+            status: 'success',
+            message: 'Data berhasil ditambahkan',
+            data
+        })
+    } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data.',
+      error: error.message,
+    });
+  }
+}
+
+const updateKelas = async (req, res) => {
+  const { nama_kelas, id_jurusan, max, id_kelas } = req.body;
+
+  try {
+    const [updated] = await KelasPpdb.update(
+      { nama_kelas, id_jurusan, max },
+      { where: { id_kelas } }
+    );
+
+    if (updated === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan atau tidak ada perubahan.",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal memperbarui data.",
+      error: error.message,
+    });
+  }
 };
+
+const deleteKelas = async (req, res) => {
+    const {id_kelas} = req.body;
+    try {
+        const data = await KelasPpdb.destroy({
+            where:{id_kelas}
+        })
+        res.status(200).json({
+      status: "success",
+      message: "Data berhasil dihapus.",
+    });
+    } catch (error) {
+        res.status(500).json({
+            status:"error",
+            message: "Gagal menghapus data",
+            error: error.message
+        })
+    }
+}
+
+const hitungSiswa = async (req, res) => {
+    const { id_kelas } = req.params;
+    try {
+        const data = await SiswaBaru.count({
+            where: { id_kelas }
+        });
+
+        res.status(200).json({ data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
 
 const formatNoHp = (no_hp) => {
   // Hapus semua karakter yang tidak diperlukan (spasi, tanda minus, tanda plus)
@@ -118,26 +236,38 @@ const dataSiswa = async (req, res) => {
 
 const detailSiswa = async (req, res) => {
     try {
-    const {id_siswa, tahun} = req.params;
-      const siswa = await SiswaPpdb.findAll({
-          include: [{
-              model: LogPpdb, as: 'log_ppdb'
-          }],
-        where: { tahun, id_siswa: id_siswa },
-      }); // Mengambil semua data dari tabel siswa_ppdb
-      res.status(200).json({
-        status: 'success',
-        message: 'Data siswa berhasil diambil.',
-        data: siswa,
-      });
+        const { id_siswa, tahun } = req.params;
+        console.log("Mencari siswa dengan ID:", id_siswa, "dan Tahun:", tahun);
+
+        const siswa = await SiswaPpdb.findOne({
+            include: [{ model: LogPpdb, as: 'log_ppdb' }],
+            where: { tahun, id_siswa },
+        });
+
+        console.log("Hasil pencarian:", siswa);
+
+        if (!siswa) {
+            return res.status(404).json({
+                status: "error",
+                message: "Siswa tidak ditemukan.",
+                data: null,
+            });
+        }
+
+        res.status(200).json({
+            status: "success",
+            message: "Data siswa berhasil diambil.",
+            data: siswa,
+        });
     } catch (error) {
-      res.status(500).json({
-        status: 'error',
-        message: 'Gagal mengambil data siswa.',
-        error: error.message,
-      });
+        console.error("Error saat mengambil data siswa:", error);
+        res.status(500).json({
+            status: "error",
+            message: "Gagal mengambil data siswa.",
+            error: error.message,
+        });
     }
-  }
+};
 
   const regisSiswa = async (req, res) => {
     try {
@@ -222,16 +352,76 @@ Silakan ketik "hai" untuk informasi dari WhatsApp BOT.`,
       });
     }
   }
+  
+  const updateSiswa = async (req, res) => {
+  const { nama_lengkap,
+        tempat_lahir,
+        tanggal_lahir,
+        jenkel,
+        agama,
+        alamat,
+        nisn,
+        nik_siswa,
+        nama_ayah,
+        nama_ibu,
+        asal_sekolah,
+        minat_jurusan1,
+        minat_jurusan2,
+        no_hp, id_siswa
+  } = req.body;
+
+  try {
+    const [updated] = await SiswaPpdb.update(
+      { nama_lengkap,
+        tempat_lahir,
+        tanggal_lahir,
+        jenkel,
+        agama,
+        alamat,
+        nisn,
+        nik_siswa,
+        nama_ayah,
+        nama_ibu,
+        asal_sekolah,
+        minat_jurusan1,
+        minat_jurusan2,
+        no_hp },
+      { where: { id_siswa } }
+    );
+
+    if (updated === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan atau tidak ada perubahan.",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal memperbarui data.",
+      error: error.message,
+    });
+  }
+};
 
   const jurusan = async (req, res) => {
+      const {tahun} = req.params;
     try {
-   const tahunSekarang = new Date().getFullYear();
+        let whereCondition = {}; // Default tanpa filter
+
+    if (tahun) {
+      whereCondition.tahun = tahun; // Filter tahun hanya jika ada parameter
+    }
+//   const tahunSekarang = new Date().getFullYear();
   const jurusanPpdb = await JurusanPpdb.findAll({
       include:[{
           model: MasterPpdb, as: 'master_ppdb',
-          where:{
-              tahun: tahunSekarang
-          }
+          where:whereCondition
       }]
   })
    res.status(200).json({
@@ -247,6 +437,37 @@ Silakan ketik "hai" untuk informasi dari WhatsApp BOT.`,
    });
  }
 }
+
+ const jurusanDetail = async (req, res) => {
+      const {id_jurusan} = req.params;
+    try {
+        let whereCondition = {}; // Default tanpa filter
+
+    if (id_jurusan) {
+      whereCondition.id_jurusan = id_jurusan; // Filter tahun hanya jika ada parameter
+    }
+//   const tahunSekarang = new Date().getFullYear();
+  const jurusanPpdb = await JurusanPpdb.findOne({
+      where:whereCondition,
+      include:[{
+          model: MasterPpdb, as: "master_ppdb"
+      }]
+  })
+   res.status(200).json({
+     status: 'success',
+     message: 'Data siswa berhasil diambil.',
+     data: jurusanPpdb,
+   });
+ } catch (error) {
+   res.status(500).json({
+     status: 'error',
+     message: 'Gagal mengambil data siswa.',
+     error: error.message,
+   });
+ }
+}
+
+
 
 const bayarDaftar = async (req, res) => {
     const { jenis, id_siswa, petugas } = req.body;
@@ -357,14 +578,35 @@ const postKelas = async (req, res) => {
     const { id_siswa, id_kelas } = req.body;
 
     try {
+        // Cek apakah kelas yang dituju ada
+        const kelas = await KelasPpdb.findOne({ where: { id_kelas } });
+
+        if (!kelas) {
+            return res.status(404).json({
+                status: "error",
+                message: "Kelas tidak ditemukan."
+            });
+        }
+
+        // Hitung jumlah siswa saat ini di kelas yang dituju
+        const jumlahSiswa = await SiswaBaru.count({ where: { id_kelas } });
+
+        // Jika jumlah siswa sudah mencapai batas maksimum, tolak perpindahan
+        if (jumlahSiswa >= kelas.max) {
+            return res.status(400).json({
+                status: "error",
+                message: `Kelas ${kelas.nama_kelas} sudah penuh. Maksimal ${kelas.max} siswa.`
+            });
+        }
+
         // Cek apakah siswa sudah ada berdasarkan id_siswa saja
         let siswa = await SiswaBaru.findOne({ where: { id_siswa } });
 
         if (!siswa) {
             // Jika tidak ada, buat data baru
             siswa = await SiswaBaru.create({ id_siswa, id_kelas });
-            res.status(201).json({
-                status: 'success',
+            return res.status(201).json({
+                status: "success",
                 message: "Data berhasil ditambahkan.",
                 siswa
             });
@@ -378,15 +620,15 @@ const postKelas = async (req, res) => {
             // Ambil ulang data terbaru
             siswa = await SiswaBaru.findOne({ where: { id_siswa } });
 
-            res.status(200).json({
-                status: 'success',
+            return res.status(200).json({
+                status: "success",
                 message: "Data berhasil diperbarui.",
                 siswa
             });
         }
     } catch (error) {
         console.error("Error:", error.message);
-        res.status(500).json({
+        return res.status(500).json({
             status: "error",
             message: "Terjadi kesalahan pada server",
             error: error.message
@@ -425,4 +667,200 @@ const tampilKelas = async(req, res) => {
 }
 
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas };
+
+const masterPpdb = async (req, res) => {
+  try {
+    const data = await MasterPpdb.findAll();
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diambil.",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data.",
+      error: error.message,
+    });
+  }
+};
+
+const createJurusan = async(req, res) => {
+    const {nama_jurusan, id_ppdb} = req.body
+    try{
+        const data = await JurusanPpdb.create({
+            nama_jurusan, id_ppdb
+        })
+        if(!data){
+            res.status(404).json({
+                status: 'error',
+                message: 'Gagal menambahkan data',
+            })
+        }
+        res.status(200).json({
+            status: 'success',
+            message: 'Data berhasil ditambahkan',
+            data
+        })
+    } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data.',
+      error: error.message,
+    });
+  }
+}
+
+const updateJurusan = async (req, res) => {
+  const { nama_jurusan, id_ppdb, id_jurusan } = req.body;
+
+  try {
+    const [updated] = await JurusanPpdb.update(
+      { nama_jurusan, id_ppdb },
+      { where: { id_jurusan } }
+    );
+
+    if (updated === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan atau tidak ada perubahan.",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal memperbarui data.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteJurusan = async (req, res) => {
+    const {id_jurusan} = req.body;
+    try {
+        const data = await JurusanPpdb.destroy({
+            where:{id_jurusan}
+        })
+        res.status(200).json({
+      status: "success",
+      message: "Data berhasil dihapus.",
+    });
+    } catch (error) {
+        res.status(500).json({
+            status:"error",
+            message: "Gagal menghapus data",
+            error: error.message
+        })
+    }
+}
+
+const siswaKelas = async (req, res) => {
+  const { id_kelas, tahun } = req.params;
+
+  try {
+    let whereCondition = {};
+    if (id_kelas) whereCondition.id_kelas = id_kelas;
+
+    const data = await SiswaBaru.findAll({
+      include: [
+        {
+          model: SiswaPpdb,
+          as: "siswa_ppdb",
+          required: true,
+        },
+        {
+          model: KelasPpdb,
+          as: "kelas_ppdb",
+          required: true,
+          where: Object.keys(whereCondition).length ? whereCondition : undefined,
+          include: [
+            {
+              model: JurusanPpdb,
+              as: "jurusan_ppdb",
+              required: true, // ✅ Pastikan hanya data dengan jurusan yang cocok yang diambil
+              include: [
+                {
+                  model: MasterPpdb,
+                  as: "master_ppdb",
+                  required: true, // ✅ Ini memastikan hanya data dengan `tahun` yang cocok yang diambil
+                  where: tahun ? { tahun } : undefined,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diambil.",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data kelas.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteSiswa = async (req, res) => {
+    const {id_siswa} = req.body;
+    try {
+        await SiswaPpdb.destroy({
+            where: {id_siswa}
+        })
+        res.status(200).json({
+            status: "success",
+            message: "Data berhasil dihapus"
+        })
+    } catch (error) {
+        res.status(500).json({
+            status: "error",
+            message: "Gagal menghapus data",
+            error: error.message
+        })
+    }
+}
+
+const leaveSiswa = async (req, res) => {
+    const { id_siswa } = req.body;
+
+    try {
+        // Jalankan dua update secara bersamaan
+        const [updated, updated2] = await Promise.all([
+            SiswaPpdb.update({ bayar_daftar: "l" }, { where: { id_siswa } }),
+            LogPpdb.update({ jenis: 'l' }, { where: { id_siswa, jenis: 'p' } })
+        ]);
+
+        // Jika kedua update gagal
+        if (updated[0] === 0 && updated2[0] === 0) {
+            return res.status(404).json({
+                status: "error",
+                message: "Data tidak ditemukan atau tidak ada perubahan.",
+            });
+        }
+
+        res.status(200).json({
+            status: "success",
+            message: "Data berhasil diperbarui.",
+            updatedRows: { siswaPpdb: updated[0], logPpdb: updated2[0] }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: "error",
+            message: "Data gagal diperbarui.",
+            error: error.message,
+        });
+    }
+};
+
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
+kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa};
