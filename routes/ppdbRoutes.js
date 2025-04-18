@@ -26,7 +26,7 @@ router.get('/detailjurusan/:id_jurusan?', jurusanDetail);
 router.post('/createjurusan',proteksi, createJurusan)
 router.put('/updatejurusan', proteksi,updateJurusan)
 router.delete('/deletejurusan',proteksi, deleteJurusan)
-router.get('/masterppdb', masterPpdb);
+router.get('/masterppdb/:tahun?', masterPpdb);
 
 router.get('/kelasppdb/:tahun', kelas)
 router.get('/hitungsiswa/:id_kelas', hitungSiswa)

@@ -669,15 +669,23 @@ const tampilKelas = async(req, res) => {
 
 
 const masterPpdb = async (req, res) => {
+  const { tahun } = req.params;
+
+  // Jika tahun tidak ada, ambil semua data
+  const whereClause = tahun ? { tahun } : {};
+
   try {
-    const data = await MasterPpdb.findAll();
-    res.status(200).json({
+    const data = await MasterPpdb.findAll({
+      where: whereClause,
+    });
+
+    return res.status(200).json({
       status: "success",
-      message: "Data berhasil diambil.",
+      message: `Data berhasil diambil${tahun ? ` untuk tahun ${tahun}` : ""}.`,
       data,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       status: "error",
       message: "Gagal mengambil data.",
       error: error.message,
