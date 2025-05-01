@@ -331,7 +331,7 @@ Bu Minati : +62 878-2211-1349
 Terima Kasih 
 Panitia SPMB SMK Sangkuriang 1 Cimahi
 
-Silakan ketik "hai" untuk informasi dari WhatsApp BOT.`,
+Note: Ini adalah whatsapp BOT, Jangan Balas Pesan ini! Terima Kasih`,
         });
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
