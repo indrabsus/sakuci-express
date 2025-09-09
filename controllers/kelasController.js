@@ -1,10 +1,10 @@
-const {Kelas, Jurusan} = require('../models')
+const {KelasPpdb} = require('../models')
 const dataKelas = async (req, res) => {
   try {
-    const kelas = await Kelas.findAll({
-        include: [
-    { model: Jurusan, as: 'jurusan', attributes: ['nama_jurusan','singkatan'] }
-  ],
+     const {tingkat} = req.params
+    const kelas = await KelasPpdb.findAll({
+        where: tingkat ? {tingkat} : {},
+        order: [["nama_kelas", "ASC"]]
     }); // Mengambil semua data dari tabel siswa_ppdb
     res.status(200).json({
       status: 'success',

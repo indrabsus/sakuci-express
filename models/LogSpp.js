@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-  const LogPpdb = sequelize.define('LogPpdb', {
-    id_log: {
+  const LogSpp = sequelize.define('LogSpp', {
+    id_logspp: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
@@ -14,26 +14,27 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BIGINT,
       allowNull: false,
     },
-    no_invoice: {
-      type: DataTypes.STRING,
+    bulan: {
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
-    jenis: {
-      type: DataTypes.ENUM('d', 'l', 'p'),
+    kelas: {
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
-    petugas: {
+    status: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    bayar: {
+      type: DataTypes.ENUM('trf', 'csh'),
+      allowNull: false,
     },
     bukti: {
         type: DataTypes.STRING,
         allowNull: true
     },
-    bayar: {
-        type: DataTypes.ENUM('csh', 'trf'),
-        allowNull: true
-    },
+    
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -45,15 +46,15 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
   }, {
-    tableName: 'log_ppdb',
+    tableName: 'log_spp',
     timestamps: false,
     underscored: true,
   });
 
   // Relasi
-  LogPpdb.associate = (models) => {
-    LogPpdb.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa_ppdb', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
+  LogSpp.associate = (models) => {
+    LogSpp.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa_ppdb', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
   };
 
-  return LogPpdb;
+  return LogSpp;
 };

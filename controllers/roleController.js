@@ -4,12 +4,36 @@ const {Role, User, DataSiswa} = db;
 // Contoh fungsi untuk mendapatkan semua role
 const getAllRoles = async (req, res) => {
   try {
-    const roles = await DataSiswa.findAll({
-      include: [{ model: User, as: 'users' }],
+    const { id_role } = req.params;
+
+    if (id_role) {
+      const role = await Role.findOne({ where: { id_role } });
+
+      if (!role) {
+        return res.status(404).json({
+          status: "error",
+          message: "Data tidak ditemukan",
+        });
+      }
+
+      return res.status(200).json({
+        status: "sukses",
+        data: role,
+      });
+    }
+
+    // Kalau tidak ada id_role → ambil semua
+    const roles = await Role.findAll();
+    return res.status(200).json({
+      status: "sukses",
+      data: roles,
     });
-    res.status(200).json(roles);
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving roles', error });
+    res.status(500).json({
+      status: "error",
+      message: "Error retrieving roles",
+      error,
+    });
   }
 };
 

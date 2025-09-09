@@ -511,52 +511,54 @@ const bayarDaftar = async (req, res) => {
 }
 }
 const bayarPpdb = async (req, res) => {
-  const { id_siswa, nom, jenis, petugas } = req.body;  // Mengambil data dari request body
+  const { id_siswa, nominal, petugas, bayar } = req.body;  
+  const bukti = req.file ? `/uploads/bukti/${req.file.filename}` : null;
 
   try {
-      const nom2 = await LogPpdb.sum('nominal', {where:{"id_siswa":id_siswa, "jenis": "p"}})
-    // 1. Cek apakah no_invoice sudah ada
-    const noInvoice = `P-${jenis.toUpperCase()}-${moment().format('DDMMYYYYHH')}${id_siswa}`;
+    const nom2 = await LogPpdb.sum('nominal', {
+      where: { id_siswa: id_siswa, jenis: "p" }
+    });
+
+    const noInvoice = `P-${moment().format('DDMMYYYYHH')}${id_siswa}`;
     const existingPayment = await LogPpdb.count({
       where: { no_invoice: noInvoice }
     });
 
-    // 2. Ambil data MasterPpdb berdasarkan tahun
     const masterPpdb = await MasterPpdb.findOne({
       where: { tahun: moment().year() }
     });
 
     if (!masterPpdb) {
-      return res.status(400).json({ message: 'Master data PPDB tidak ditemukan!' });
+      return res.status(400).json({ status: "gagal", message: 'Master data PPDB tidak ditemukan!' });
     }
 
-    // 3. Total nominal yang dimasukkan
-    const inputNow = nom + nom2;
+    const inputNow = Number(nominal) + Number(nom2 || 0);
 
     if (inputNow > masterPpdb.ppdb) {
-      return res.status(400).json({ message: 'Melebihi jumlah nominal!' });
+      return res.status(400).json({ status: "gagal", message: 'Melebihi jumlah nominal!' });
     }
 
-    // 4. Jika no_invoice belum ada, simpan data
     if (existingPayment < 1) {
-      const noInvoiceCreated = `P-${jenis.toUpperCase()}-${moment().format('DDMMYYYYHH')}-${id_siswa.substring(0, 3)}`;
+      const noInvoiceCreated = `P-${moment().format('DDMMYYYYHH')}-${id_siswa.substring(0, 3)}`;
       const tampung = await LogPpdb.create({
         id_siswa,
-        nominal: nom,
+        nominal: nominal,
         no_invoice: noInvoiceCreated,
         jenis: 'p',
-        petugas
+        bayar,
+        petugas,
+        bukti // simpan path bukti
       });
 
-      return res.status(200).json({ message: 'Berhasil membayar!', data: tampung });
+      return res.status(200).json({ status: "sukses", message: 'Berhasil membayar!', data: tampung });
     } else {
-      return res.status(400).json({ message: 'Tunggu beberapa saat!' });
+      return res.status(400).json({ status: "gagal", message: 'Tunggu beberapa saat!' });
     }
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: 'Terjadi kesalahan!' });
+    return res.status(500).json({ status: "gagal", message: 'Terjadi kesalahan!' });
   }
-}
+};
 
 const deleteLog = async (req, res) => {
     const { jenis, id_siswa, id_log } = req.body;
@@ -675,7 +677,7 @@ const masterPpdb = async (req, res) => {
   const whereClause = tahun ? { tahun } : {};
 
   try {
-    const data = await MasterPpdb.findAll({
+    const data = await MasterPpdb.findOne({
       where: whereClause,
     });
 

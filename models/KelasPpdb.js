@@ -6,6 +6,10 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       allowNull: false,
     },
+    tingkat: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     nama_kelas: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -40,9 +44,9 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true,
   });
 
-  KelasPpdb.associate = (models) => {
-    KelasPpdb.belongsTo(models.JurusanPpdb, { foreignKey: 'id_jurusan', as: 'jurusan_ppdb' });
-  };
+//   KelasPpdb.associate = (models) => {
+//     KelasPpdb.belongsTo(models.JurusanPpdb, { foreignKey: 'id_jurusan', as: 'jurusan_ppdb' });
+//   };
 
   return KelasPpdb;
 };

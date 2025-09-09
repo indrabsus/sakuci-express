@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('l', 'p'),
       allowNull: false,
     },
+    no_hp: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     agama: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -43,7 +47,19 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
+    pekerjaan_ayah: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     nama_ibu: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    pekerjaan_ibu: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    no_hp_ortu: {
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -59,10 +75,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    no_hp: {
-      type: DataTypes.BIGINT,
-      allowNull: false,
-    },
     tahun: {
       type: DataTypes.BIGINT,
       allowNull: false,
@@ -70,6 +82,34 @@ module.exports = (sequelize, DataTypes) => {
     bayar_daftar: {
       type: DataTypes.ENUM('y', 'n'),
       allowNull: false,
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    status: {
+      type: DataTypes.ENUM('aktif', 'nonaktif', 'keluar'),
+      allowNull: false,
+    },
+    instagram: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    wifi: {
+      type: DataTypes.ENUM('y', 'n', 'f'),
+      allowNull: false,
+    },
+    no_rfid: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    gambar: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -88,6 +128,9 @@ module.exports = (sequelize, DataTypes) => {
   });
   SiswaPpdb.associate = (models) => {
     SiswaPpdb.hasMany(models.LogPpdb, { foreignKey: 'id_siswa', as: 'log_ppdb' });
+    SiswaPpdb.hasMany(models.LogSpp, { foreignKey: 'id_siswa', as: 'log_spp' });
+    
+    SiswaPpdb.hasOne(models.SiswaBaru, { foreignKey: 'id_siswa', as: 'siswa_baru' });
   };
 
   return SiswaPpdb;

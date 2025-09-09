@@ -1,12 +1,16 @@
 module.exports = (sequelize, DataTypes) => {
-  const Role = sequelize.define('Role', {
-    id_role: {
+  const JsMenu = sequelize.define('JsMenu', {
+    id_menu: {
       type: DataTypes.UUID,
-      primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
       allowNull: false,
     },
-    nama_role: {
+    label: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    icon: {
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -21,17 +25,15 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
   }, {
-    tableName: 'roles',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    tableName: 'js_menu',
+    timestamps: false,
+    underscored: true,
   });
-
-  Role.associate = (models) => {
-    Role.hasMany(models.User, { foreignKey: 'id_role', as: 'user' });
-    Role.hasMany(models.JsSubMenu, { foreignKey: 'id_role', as: 'sub_menu' });
-  };
   
+  JsMenu.associate = (models) => {
+    // Contoh relasi (tambah relasi sesuai kebutuhan)
+    JsMenu.hasMany(models.JsSubMenu, { foreignKey: 'id_menu', as: 'sub_menu' });
+  };
 
-  return Role;
+  return JsMenu;
 };

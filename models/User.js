@@ -48,6 +48,7 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.Kelas, { foreignKey: 'id_user', as: 'kelas' });
     User.hasMany(models.DataSiswa, { foreignKey: 'id_user', as: 'data_siswa' });
     User.hasMany(models.MapelKelas, { foreignKey: 'id_user', as: 'mapel_kelas' });
+    User.hasOne(models.DataUser, { foreignKey: "id_user" });
   };
 
   return User;
