@@ -3,11 +3,20 @@ const proteksi = require('../middleware/authMiddleware');
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
-const { masterSppData, logLastSpp, bayarSpp } = require('../controllers/sppController');
+const { masterSppData, logLastSpp, bayarSpp, logSpp, detailLog, updateLog, deleteLog, createMaster, updateMaster, detailMaster, deleteMaster
+} = require('../controllers/sppController');
 const router = express.Router();
 
-router.get('/master/:tahun', masterSppData);
-router.get('/loglast/:id_siswa', logLastSpp);
+router.get('/master/:tahun?', masterSppData);
+router.get('/detailmaster/:id_spp?', detailMaster);
+router.post('/createmaster', createMaster);
+router.put('/updatemaster/:id_spp', updateMaster);
+router.delete('/deletemaster/:id_spp', deleteMaster);
+router.get('/loglast/:id_siswa', proteksi, logLastSpp);
+router.get('/log', proteksi, logSpp);
+router.get('/logdetail/:id_logspp', proteksi, detailLog)
+router.put('/updatelog/:id_logspp', proteksi, updateLog)
+router.delete('/deletelog/:id_logspp', proteksi, deleteLog)
 
 // Konfigurasi multer
 const storage = multer.diskStorage({

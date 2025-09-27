@@ -697,6 +697,11 @@ d@^1.0.1, d@^1.0.2, d@1:
     es5-ext "^0.10.64"
     type "^2.7.2"
 
+dayjs@^1.11.18:
+  version "1.11.18"
+  resolved "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.18.tgz"
+  integrity sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA==
+
 debug@^4, debug@^4.1.1, debug@^4.3.4, debug@4:
   version "4.4.0"
   resolved "https://registry.npmmirror.com/debug/-/debug-4.4.0.tgz"

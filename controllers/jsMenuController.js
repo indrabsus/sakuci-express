@@ -30,11 +30,22 @@ const dataMenu = async (req, res) => {
 
     // kalau tidak ada id_menu, ambil semua
     const menus = await JsMenu.findAll({
-      include: [{
-        model: JsSubMenu, as: 'sub_menu',
-        include: [{ model: Role, as: 'role' }]
-      }]
-    });
+  include: [
+    {
+      model: JsSubMenu,
+      as: 'sub_menu',
+      include: [
+        {
+          model: Role,
+          as: 'role'
+        }
+      ]
+    }
+  ],
+  order: [
+    [{ model: JsSubMenu, as: 'sub_menu' }, 'sublabel', 'ASC']
+  ]
+});
 
     res.status(200).json({
       status: 'success',

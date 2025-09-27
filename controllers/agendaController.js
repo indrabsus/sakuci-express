@@ -1,7 +1,115 @@
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi, AbsenSiswa} = require('../models');
+const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb} = require('../models');
 const moment = require('moment-timezone');
-// Fungsi isiAgenda
+
+const dataAgenda = async (req, res) => {
+  try {
+    const { id_agenda } = req.params;
+
+    const queryOptions = {
+      include: [
+        { model: DataUser, as: "guru" },
+        { model: MataPelajaran, as: "mapel" },
+        { model: KelasPpdb, as: "kelas" }
+      ],
+      order: [["created_at", "DESC"]]
+    };
+
+    let data;
+
+    if (id_agenda) {
+      // ambil 1 data
+      data = await Agenda.findOne({
+        where: { id_agenda },
+        ...queryOptions,
+        
+      });
+    } else {
+      // ambil semua data
+      data = await Agenda.findAll(queryOptions);
+    }
+
+    if (data) {
+      return res.status(200).json({
+        status: "success",
+        message: id_agenda ? "Data agenda ditemukan" : "Semua data agenda berhasil diambil",
+        data,
+      });
+    }
+
+    return res.status(404).json({
+      status: "error",
+      message: id_agenda ? "Agenda tidak ditemukan" : "Belum ada data agenda",
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
+const createAgenda = async(req, res) => {
+    const { id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status } = req.body;
+    try{
+        const data = await Agenda.create({
+            id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status
+        })
+        if(!data){
+            res.status(400).json({
+                status: 'error',
+                message: 'gagal menambahkan data!'
+            })
+        } else {
+            res.status(200).json({
+                status: 'success',
+                message: 'berhasil menambahkan data!',
+                data
+            })
+        }
+    } catch(error){
+        res.status(500).json({
+            status: 'gagal',
+            message: 'gagal mengambil data!',
+            error: error.message
+        })
+    }
+}
+
+const deleteAgenda = async (req, res) => {
+    const { id_agenda } = req.params;
+
+    try {
+        const data = await Agenda.findByPk(id_agenda);
+
+        if (!data) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'data tidak ditemukan!'
+            });
+        }
+
+        await data.destroy();
+
+        res.status(200).json({
+            status: 'success',
+            message: 'berhasil menghapus data!'
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'gagal',
+            message: 'gagal menghapus data!',
+            error: error.message
+        });
+    }
+};
+
+
+
+// Fungsi AGENDA LAMA
 const isiAgenda = async (req, res) => {
   try {
     const { username } = req.params;
@@ -222,7 +330,4 @@ async function prosesAbsen(req, res) {
     }
 }
 
-
-
-
-module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen };
+module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, deleteAgenda, createAgenda };
