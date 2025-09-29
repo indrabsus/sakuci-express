@@ -1,6 +1,7 @@
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb} = require('../models');
 const moment = require('moment-timezone');
+const axios = require("axios");
 
 const dataAgenda = async (req, res) => {
   try {
@@ -53,11 +54,26 @@ const dataAgenda = async (req, res) => {
 };
 
 const createAgenda = async(req, res) => {
-    const { id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status } = req.body;
+    const { id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status, no_hp } = req.body;
     try{
         const data = await Agenda.create({
             id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status
         })
+        const dataUser = await DataUser.findOne({where: {id_data: id_data}})
+        dataUser.update({
+          'no_hp': normalizePhoneNumber(no_hp)
+        })
+       try {
+  const waRes = await axios.post("https://wa.sakuci.id/notifuser", {
+    nomor: normalizePhoneNumber(no_hp),
+    pesan: `Ini adalah link Absen: https://sakuci.id/siswakelas/${data.id_agenda}`,
+  });
+  console.log("WA Response:", waRes.data);
+} catch (waError) {
+  console.error("Gagal kirim WA:", waError.response?.data || waError.message);
+  console.error("Status:", waError.response?.status);
+  console.error("Headers:", waError.response?.headers);
+}
         if(!data){
             res.status(400).json({
                 status: 'error',
@@ -77,6 +93,26 @@ const createAgenda = async(req, res) => {
             error: error.message
         })
     }
+}
+
+function normalizePhoneNumber(no_hp) {
+  if (!no_hp) return null;
+
+  // hapus semua spasi, strip, titik
+  let cleaned = no_hp.replace(/[\s.-]/g, "");
+
+  // kalau diawali 0 → ganti jadi 62
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.substring(1);
+  }
+
+  // kalau sudah diawali 62 → biarkan
+  if (cleaned.startsWith("62")) {
+    return cleaned;
+  }
+
+  // kalau tidak ada 0 atau 62 → fallback, tambahkan 62
+  return "62" + cleaned;
 }
 
 const deleteAgenda = async (req, res) => {

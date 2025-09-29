@@ -1,5 +1,6 @@
 const express = require("express");
 require('dotenv').config();
+
 const authRoutes = require('./routes/authRoutes');
 const ppdbRoutes = require('./routes/ppdbRoutes');
 const siswaRoutes = require('./routes/siswaRoutes');
@@ -15,6 +16,7 @@ const dataRoutes = require('./routes/dataRoutes');
 const sppRoutes = require('./routes/sppRoutes');
 const rfidRoutes = require('./routes/rfidRoutes');
 const presensiRoutes = require('./routes/presensiRoutes');
+const zkRoutes = require('./routes/zkRoutes');
 const cors = require('cors');
 const path = require("path");
 
@@ -40,6 +42,7 @@ app.use('/data', dataRoutes);
 app.use('/spp', sppRoutes);
 app.use('/rfid', rfidRoutes);
 app.use('/presensi', presensiRoutes);
+app.use('/zk', zkRoutes);
 
 
 // API Endpoint
