@@ -64,9 +64,9 @@ const createAgenda = async(req, res) => {
           'no_hp': normalizePhoneNumber(no_hp)
         })
        try {
-  const waRes = await axios.post("https://wa.sakuci.id/notifuser", {
+  const waRes = await axios.post(`${process.env.API_WA}`, {
     nomor: normalizePhoneNumber(no_hp),
-    pesan: `Ini adalah link Absen: https://sakuci.id/siswakelas/${data.id_agenda}`,
+    pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
   });
   console.log("WA Response:", waRes.data);
 } catch (waError) {
