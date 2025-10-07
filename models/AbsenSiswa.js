@@ -8,22 +8,22 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
         allowNull: false,
       },
-      id_user: {
+      id_siswa: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'users',
-          key: 'id',
+          model: 'siswa_ppdb',
+          key: 'id_siswa',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
       },
-      id_materi: {
+      id_agenda: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-          model: 'materi',
-          key: 'id_materi',
+          model: 'agenda',
+          key: 'id_agenda',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
@@ -55,8 +55,8 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   AbsenSiswa.associate = (models) => {
-    AbsenSiswa.belongsTo(models.User, { foreignKey: 'id_user', as: 'user' });
-    AbsenSiswa.belongsTo(models.Materi, { foreignKey: 'id_materi', as: 'materi' });
+    AbsenSiswa.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa_ppdb' });
+    AbsenSiswa.belongsTo(models.Agenda, { foreignKey: 'id_agenda', as: 'agenda' });
   };
 
   return AbsenSiswa;

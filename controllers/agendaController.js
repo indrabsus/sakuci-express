@@ -53,47 +53,104 @@ const dataAgenda = async (req, res) => {
   }
 };
 
-const createAgenda = async(req, res) => {
-    const { id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status, no_hp } = req.body;
-    try{
-        const data = await Agenda.create({
-            id_mapel, id_data, id_kelas, materi, tingkat, semester, tahun_pelajaran, penilaian, jamke, status
-        })
-        const dataUser = await DataUser.findOne({where: {id_data: id_data}})
-        dataUser.update({
-          'no_hp': normalizePhoneNumber(no_hp)
-        })
-       try {
-  const waRes = await axios.post(`${process.env.API_WA}`, {
-    nomor: normalizePhoneNumber(no_hp),
-    pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
-  });
-  console.log("WA Response:", waRes.data);
-} catch (waError) {
-  console.error("Gagal kirim WA:", waError.response?.data || waError.message);
-  console.error("Status:", waError.response?.status);
-  console.error("Headers:", waError.response?.headers);
-}
-        if(!data){
-            res.status(400).json({
-                status: 'error',
-                message: 'gagal menambahkan data!'
-            })
-        } else {
-            res.status(200).json({
-                status: 'success',
-                message: 'berhasil menambahkan data!',
-                data
-            })
-        }
-    } catch(error){
-        res.status(500).json({
-            status: 'gagal',
-            message: 'gagal mengambil data!',
-            error: error.message
-        })
+const createAgenda = async (req, res) => {
+  const {
+    id_mapel,
+    id_data,
+    id_kelas,
+    materi,
+    tingkat,
+    semester,
+    tahun_pelajaran,
+    penilaian,
+    jamke,
+    status,
+    no_hp,
+  } = req.body;
+
+  try {
+    // ambil tanggal hari ini (YYYY-MM-DD)
+    const today = moment().format("YYYY-MM-DD");
+
+    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
+    const duplicate = await Agenda.findOne({
+      where: {
+        id_kelas,
+        jamke,
+        id_data,
+        id_mapel,
+        created_at: {
+          [Op.gte]: `${today} 00:00:00`,
+          [Op.lte]: `${today} 23:59:59`,
+        },
+      },
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        status: "error",
+        message: "Agenda dengan kelas dan jam yang sama sudah ada di hari ini!",
+      });
     }
+
+    // kalau tidak ada duplikat, buat agenda baru
+    const data = await Agenda.create({
+      id_mapel,
+      id_data,
+      id_kelas,
+      materi,
+      tingkat,
+      semester,
+      tahun_pelajaran,
+      penilaian,
+      jamke,
+      status,
+    });
+
+    // update nomor HP user
+    const dataUser = await DataUser.findOne({ where: { id_data }, raw: false });
+    console.log("dataUser:", dataUser);
+
+    if (dataUser) {
+  if (no_hp) { // hanya update kalau ada input no_hp
+    const normalized = normalizePhoneNumber(no_hp);
+
+    if (dataUser.no_hp !== normalized) {
+      await dataUser.update({ no_hp: normalized });
+    }
+
+    console.log("no_hp:", dataUser.no_hp);
+  } else {
+    console.log("no_hp kosong, tidak diupdate. no_hp lama:", dataUser.no_hp);
+  }
+} else {
+  console.log("User tidak ditemukan");
 }
+
+    // kirim WA
+    try {
+      const waRes = await axios.post(`${process.env.API_WA}`, {
+        nomor: dataUser.no_hp,
+        pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
+      });
+      console.log("WA Response:", waRes.data);
+    } catch (waError) {
+      console.error("Gagal kirim WA:", waError.response?.data || waError.message);
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "berhasil menambahkan data!",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "gagal",
+      message: "gagal mengambil data!",
+      error: error.message,
+    });
+  }
+};
 
 function normalizePhoneNumber(no_hp) {
   if (!no_hp) return null;

@@ -29,5 +29,9 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true, // snake_case kolom
   });
 
+   Temp.associate = (models) => {
+    Temp.belongsTo(models.MasterRfid, { foreignKey: 'kode_mesin', as: 'master_rfid', onUpdate: 'CASCADE', onDelete: 'CASCADE', targetKey: 'kode_mesin', });
+  };
+
   return Temp;
 };

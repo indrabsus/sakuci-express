@@ -69,4 +69,44 @@ const rfidGlobal = async (req, res) => {
   }
 };
 
-module.exports = { rfidGlobal };
+const getTemp = async (req, res) => {
+  try {
+    const data = await Temp.findOne({
+      include: [{ model: MasterRfid, as: "master_rfid" }],
+      order: [["created_at", "DESC"]], // ambil data paling baru
+    });
+
+    if (!data) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data belum tersedia.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data terakhir berhasil diambil.",
+      data,
+    });
+  } catch (error) {
+    console.error("Error getTemp:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan server.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteTemp = async (req, res) => {
+  try {
+    const {kode_mesin} = req.params;
+    await Temp.destroy({ where: { kode_mesin: kode_mesin } });
+    return res.status(200).json({ message: "Data berhasil dihapus." });
+  } catch (error) {
+    console.error("Error deleteTemp:", error);
+    return res.status(500).json({ message: "Terjadi kesalahan server.", error: error.message });
+  }
+};
+
+module.exports = { rfidGlobal, getTemp, deleteTemp };

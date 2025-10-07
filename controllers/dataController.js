@@ -1,4 +1,6 @@
-const {SiswaPpdb, LogPpdb, KelasPpdb, SiswaBaru, LogSpp, DataUser, AbsenHarianSiswa, User, MataPelajaran} = require('../models'); // Pastikan path benar
+const {SiswaPpdb, LogPpdb, KelasPpdb, SiswaBaru, LogSpp, DataUser, AbsenHarianSiswa, User, MataPelajaran,
+  Agenda, AbsenSiswa, Nilai
+} = require('../models'); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
 const bcrypt = require('bcrypt');
@@ -148,6 +150,10 @@ const dataSiswa = async (req, res) => {
         { model: LogPpdb, as: "log_ppdb" },
         { model: LogSpp, as: "log_spp" },
         { model: AbsenHarianSiswa, as: "absen_harian_siswa"},
+        { model: AbsenSiswa, as: "absen_siswa"},
+        { model: Nilai, as: "nilai",
+          include: [{ model: Agenda, as: 'agenda' }]
+        },
         {
           model: SiswaBaru,
           as: "siswa_baru",
@@ -191,6 +197,7 @@ const dataUser = async (req, res) => {
       data = await DataUser.findOne({
         include: [
           { model: User, as: "user" },
+          { model: Agenda, as: "agenda" }
         ],
         where: { id_user },
       });
@@ -199,6 +206,7 @@ const dataUser = async (req, res) => {
       data = await DataUser.findAll({
         include: [
           { model: User, as: "user" },
+          { model: Agenda, as: "agenda" }
         ],
         order: [["uid_fp", "ASC"]],
       });
@@ -212,7 +220,7 @@ const dataUser = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Gagal mengambil data siswa.",
+      message: "Gagal mengambil data.",
       error: error.message,
     });
   }

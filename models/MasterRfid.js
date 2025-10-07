@@ -33,5 +33,9 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true, // pakai snake_case
   });
 
+  MasterRfid.associate = (models) => {
+    MasterRfid.hasMany(models.Temp, { foreignKey: 'kode_mesin', as: 'temp', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
+  };
+
   return MasterRfid;
 };
