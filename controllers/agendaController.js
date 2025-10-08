@@ -1,5 +1,6 @@
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb} = require('../models');
+const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, 
+  User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb, Jadwal} = require('../models');
 const moment = require('moment-timezone');
 const axios = require("axios");
 
@@ -41,6 +42,38 @@ const dataAgenda = async (req, res) => {
     return res.status(404).json({
       status: "error",
       message: id_agenda ? "Agenda tidak ditemukan" : "Belum ada data agenda",
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
+const dataJadwal = async (req, res) => {
+  try {
+    const { id_data, hari, jam_ke } = req.params;
+
+    
+      data = await Jadwal.findOne({
+        where: { id_data, hari, jam_ke },
+      });
+
+    if (data) {
+      return res.status(200).json({
+        status: "success",
+        message: "Data ditemukan",
+        data,
+      });
+    }
+
+    return res.status(404).json({
+      status: "error",
+      message: "Belum ada data",
     });
 
   } catch (error) {
@@ -109,7 +142,6 @@ const createAgenda = async (req, res) => {
 
     // update nomor HP user
     const dataUser = await DataUser.findOne({ where: { id_data }, raw: false });
-    console.log("dataUser:", dataUser);
 
     if (dataUser) {
   if (no_hp) { // hanya update kalau ada input no_hp
@@ -137,6 +169,61 @@ const createAgenda = async (req, res) => {
     } catch (waError) {
       console.error("Gagal kirim WA:", waError.response?.data || waError.message);
     }
+
+    res.status(200).json({
+      status: "success",
+      message: "berhasil menambahkan data!",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "gagal",
+      message: "gagal mengambil data!",
+      error: error.message,
+    });
+  }
+};
+
+const createJadwal = async (req, res) => {
+  const {
+    id_data,
+    id_mapel,
+    id_kelas,
+    jam_ke,
+    sampai_ke,
+    hari
+  } = req.body;
+
+  try {
+    
+
+    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
+    const duplicate = await Jadwal.findOne({
+      where: {
+        id_data,
+        jam_ke,
+        id_kelas,
+        id_mapel,
+        
+      },
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        status: "error",
+        message: "Jadwal sudah ada!",
+      });
+    }
+
+    // kalau tidak ada duplikat, buat agenda baru
+    const data = await Jadwal.create({
+      id_data,
+    id_mapel,
+    id_kelas,
+    jam_ke,
+    sampai_ke,
+    hari
+    });
 
     res.status(200).json({
       status: "success",
@@ -423,4 +510,6 @@ async function prosesAbsen(req, res) {
     }
 }
 
-module.exports = { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, deleteAgenda, createAgenda };
+module.exports = { isiAgenda, cekUsername, getMateri, 
+  prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, 
+  deleteAgenda, createAgenda, dataJadwal, createJadwal };
