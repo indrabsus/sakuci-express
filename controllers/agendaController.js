@@ -86,6 +86,69 @@ const dataJadwal = async (req, res) => {
   }
 };
 
+const jadwalList = async (req, res) => {
+  try {
+    const { id_jadwal } = req.params; // ambil dari parameter URL kalau ada
+
+    let data;
+
+    if (id_jadwal) {
+      // kalau ada id_jadwal, ambil satu data saja
+      data = await Jadwal.findOne({
+        where: { id_jadwal },
+        include: [
+          { model: DataUser, as: "guru" },
+          { model: MataPelajaran, as: "mapel" },
+          { model: KelasPpdb, as: "kelas" },
+        ],
+      });
+
+      if (!data) {
+        return res.status(404).json({
+          status: "error",
+          message: "Data dengan ID tersebut tidak ditemukan",
+        });
+      }
+
+      return res.status(200).json({
+        status: "success",
+        message: "Data ditemukan",
+        data,
+      });
+    }
+
+    // kalau tidak ada id_jadwal, ambil semua data
+    data = await Jadwal.findAll({
+      include: [
+        { model: DataUser, as: "guru" },
+        { model: MataPelajaran, as: "mapel" },
+        { model: KelasPpdb, as: "kelas" },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Belum ada data",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data ditemukan",
+      data,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
 const createAgenda = async (req, res) => {
   const {
     id_mapel,
@@ -102,16 +165,16 @@ const createAgenda = async (req, res) => {
   } = req.body;
 
   try {
-    // ambil tanggal hari ini (YYYY-MM-DD)
     const today = moment().format("YYYY-MM-DD");
 
-    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
+    // cek duplikat
     const duplicate = await Agenda.findOne({
       where: {
         id_kelas,
         jamke,
         id_data,
         id_mapel,
+        tahun_pelajaran,
         created_at: {
           [Op.gte]: `${today} 00:00:00`,
           [Op.lte]: `${today} 23:59:59`,
@@ -126,7 +189,7 @@ const createAgenda = async (req, res) => {
       });
     }
 
-    // kalau tidak ada duplikat, buat agenda baru
+    // buat agenda baru
     const data = await Agenda.create({
       id_mapel,
       id_data,
@@ -140,35 +203,108 @@ const createAgenda = async (req, res) => {
       status,
     });
 
-    // update nomor HP user
-    const dataUser = await DataUser.findOne({ where: { id_data }, raw: false });
+    // cari user
+    const dataUser = await DataUser.findOne({ where: { id_data } });
 
-    if (dataUser) {
-  if (no_hp) { // hanya update kalau ada input no_hp
-    const normalized = normalizePhoneNumber(no_hp);
+    // normalisasi nomor hp jika ada
+    let nomorTujuan = null;
+    if (dataUser && no_hp) {
+      const normalized = normalizePhoneNumber(no_hp);
+      nomorTujuan = normalized;
 
-    if (dataUser.no_hp !== normalized) {
-      await dataUser.update({ no_hp: normalized });
+      if (dataUser.no_hp !== normalized) {
+        await dataUser.update({ no_hp: normalized });
+      }
     }
 
-    console.log("no_hp:", dataUser.no_hp);
-  } else {
-    console.log("no_hp kosong, tidak diupdate. no_hp lama:", dataUser.no_hp);
+    // 🔹 kirim respon sukses duluan
+    res.status(200).json({
+      status: "success",
+      message: "Berhasil menambahkan data!",
+      data,
+    });
+
+    // 🔹 kirim WA di background (tanpa menunggu)
+    if (nomorTujuan) {
+      (async () => {
+        try {
+          const waRes = await axios.post(`${process.env.API_WA}`, {
+            nomor: nomorTujuan,
+            pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
+          });
+          console.log("WA Response:", waRes.data);
+        } catch (waError) {
+          console.error("Gagal kirim WA:", waError.response?.data || waError.message);
+        }
+      })();
+    }
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "gagal",
+      message: "Gagal menambahkan data!",
+      error: error.message,
+    });
   }
-} else {
-  console.log("User tidak ditemukan");
-}
+};
 
-    // kirim WA
-    try {
-      const waRes = await axios.post(`${process.env.API_WA}`, {
-        nomor: dataUser.no_hp,
-        pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
+const createJadwal = async (req, res) => {
+  const {
+    id_data,
+    id_mapel,
+    id_kelas,
+    jam_ke,
+    sampai_ke,
+    hari,
+    tahun_pelajaran
+  } = req.body;
+
+  try {
+    
+
+    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
+    const duplicate = await Jadwal.findOne({
+      where: {
+        id_data,
+        jam_ke,
+        id_kelas,
+        id_mapel,
+        tahun_pelajaran
+      },
+    });
+
+    if (duplicate) {
+      const updateJadwal = await Jadwal.update(
+        {
+          sampai_ke,
+        },
+        {
+          where: {
+            id_data,
+            jam_ke,
+            id_kelas,
+            id_mapel,
+            tahun_pelajaran
+          },
+        }
+      )
+      return res.status(200).json({
+        status: "update success",
+        message: "Jadwal sudah terupdate!",
       });
-      console.log("WA Response:", waRes.data);
-    } catch (waError) {
-      console.error("Gagal kirim WA:", waError.response?.data || waError.message);
     }
+
+    // kalau tidak ada duplikat, buat agenda baru
+    const data = await Jadwal.create({
+      id_data,
+    id_mapel,
+    id_kelas,
+    jam_ke,
+    sampai_ke,
+    hari,
+    tahun_pelajaran
+    });
 
     res.status(200).json({
       status: "success",
@@ -184,56 +320,51 @@ const createAgenda = async (req, res) => {
   }
 };
 
-const createJadwal = async (req, res) => {
+const updateJadwal = async (req, res) => {
+  const { id_jadwal } = req.params; // ambil ID dari URL
   const {
     id_data,
     id_mapel,
     id_kelas,
     jam_ke,
     sampai_ke,
-    hari
+    hari,
+    tahun_pelajaran
   } = req.body;
 
   try {
-    
+    // cek apakah data dengan id_jadwal tersebut ada
+    const jadwal = await Jadwal.findOne({ where: { id_jadwal } });
 
-    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
-    const duplicate = await Jadwal.findOne({
-      where: {
-        id_data,
-        jam_ke,
-        id_kelas,
-        id_mapel,
-        
-      },
-    });
-
-    if (duplicate) {
-      return res.status(400).json({
+    if (!jadwal) {
+      return res.status(404).json({
         status: "error",
-        message: "Jadwal sudah ada!",
+        message: "Data jadwal tidak ditemukan",
       });
     }
 
-    // kalau tidak ada duplikat, buat agenda baru
-    const data = await Jadwal.create({
+    // update data jadwal
+    await jadwal.update({
       id_data,
-    id_mapel,
-    id_kelas,
-    jam_ke,
-    sampai_ke,
-    hari
+      id_mapel,
+      id_kelas,
+      jam_ke,
+      sampai_ke,
+      hari,
+      tahun_pelajaran
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
-      message: "berhasil menambahkan data!",
-      data,
+      message: "Data jadwal berhasil diperbarui",
+      data: jadwal,
     });
+
   } catch (error) {
-    res.status(500).json({
-      status: "gagal",
-      message: "gagal mengambil data!",
+    console.error("Error update jadwal:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal memperbarui data jadwal",
       error: error.message,
     });
   }
@@ -510,6 +641,36 @@ async function prosesAbsen(req, res) {
     }
 }
 
+const deleteJadwal = async (req, res) => {
+  const { id_jadwal } = req.params;
+
+  try {
+    const jadwal = await Jadwal.findByPk(id_jadwal);
+
+    if (!jadwal) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data jadwal tidak ditemukan!",
+      });
+    }
+
+    await jadwal.destroy();
+
+    res.status(200).json({
+      status: "success",
+      message: "Data jadwal berhasil dihapus!",
+    });
+  } catch (error) {
+    console.error("Error delete jadwal:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Gagal menghapus data jadwal!",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = { isiAgenda, cekUsername, getMateri, 
   prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, 
-  deleteAgenda, createAgenda, dataJadwal, createJadwal };
+  deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList,
+updateJadwal, deleteJadwal };

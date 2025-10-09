@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
+    tahun_pelajaran: {
+      type: DataTypes.CHAR(30),
+      allowNull: true,
+    },
     jam_ke: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -69,7 +73,7 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'id_data',
       as: 'guru',
     });
-    Jadwal.belongsTo(models.Kelas, {
+    Jadwal.belongsTo(models.KelasPpdb, {
       foreignKey: 'id_kelas',
       as: 'kelas',
     });
