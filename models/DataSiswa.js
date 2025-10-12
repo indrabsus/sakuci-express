@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     no_hp: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     nis: {
       type: DataTypes.STRING,

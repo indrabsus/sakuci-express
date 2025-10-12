@@ -269,6 +269,22 @@ const detailSiswa = async (req, res) => {
     }
 };
 
+function generateAlias(nama_lengkap) {
+  // 1️⃣ Hapus karakter selain huruf dan angka (termasuk spasi dan tanda petik)
+  const cleaned = nama_lengkap
+    .toLowerCase()             // ubah jadi huruf kecil
+    .replace(/[^a-z0-9]/g, ""); // hapus semua karakter selain huruf dan angka
+
+  // 2️⃣ Ambil maksimal 8 karakter pertama
+  const shortName = cleaned.substring(0, 8);
+
+  // 3️⃣ Buat angka random 3 digit (100–999 biar gak ada nol di depan)
+  const randomNum = Math.floor(100 + Math.random() * 900);
+
+  // 4️⃣ Gabungkan angka + nama
+  return `${randomNum}${shortName}`;
+}
+
   const regisSiswa = async (req, res) => {
     try {
       const {
@@ -286,14 +302,18 @@ const detailSiswa = async (req, res) => {
         minat_jurusan1,
         minat_jurusan2,
         no_hp,
+        no_hp_ortu,
       } = req.body;
   
       // Format nomor HP
       const no_hpFormatted = formatNoHp(no_hp);
+      const no_hp_ortuFormatted = formatNoHp(no_hp_ortu);
       const tahunSekarang = new Date().getFullYear();
   
       // Simpan data ke database
       const newSiswa = await SiswaPpdb.create({
+        username: generateAlias(nama_lengkap),
+        password: "$2y$10$T37wZbFAVv7.F2DQ5xf7CeHN4jW8anTqI3OnIR.tezKHjZGVRRvvm",
         nama_lengkap,
         tempat_lahir,
         tanggal_lahir,
@@ -309,8 +329,14 @@ const detailSiswa = async (req, res) => {
         minat_jurusan2,
         no_hp: no_hpFormatted,
         tahun: tahunSekarang,
+        no_hp_ortu : no_hp_ortuFormatted,
         bayar_daftar: 'n',
+        status: 'ppdb',
+        tahun: tahunSekarang,
+        wifi: 'f'
       });
+
+      // console.log(newSiswa)
   
       // Kirim pesan notifikasi
       try {

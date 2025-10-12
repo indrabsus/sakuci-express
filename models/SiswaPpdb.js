@@ -6,12 +6,12 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
     },
     nama_lengkap: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING, 
       allowNull: false,
     },
     tempat_lahir: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     tanggal_lahir: {
       type: DataTypes.DATE,
@@ -49,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     pekerjaan_ayah: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     nama_ibu: {
       type: DataTypes.STRING,
@@ -57,7 +57,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     pekerjaan_ibu: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     no_hp_ortu: {
       type: DataTypes.STRING,
@@ -92,20 +92,20 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM('aktif', 'nonaktif', 'keluar'),
+      type: DataTypes.ENUM('aktif', 'nonaktif', 'keluar','ppdb'),
       allowNull: false,
     },
     instagram: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     wifi: {
       type: DataTypes.ENUM('y', 'n', 'f'),
-      allowNull: false,
+      allowNull: true,
     },
     no_rfid: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     gambar: {
       type: DataTypes.STRING,
