@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList, updateJadwal, deleteJadwal } = require('../controllers/agendaController');
+const { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList, updateJadwal, deleteJadwal, hitungAgenda, hariJadwal, hariAgenda } = require('../controllers/agendaController');
 // const authMiddleware = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT
 
 router.get('/data/:id_agenda?', dataAgenda);
+router.get('/hitung/:id_data/:bulan/:tahun', hitungAgenda);
 router.get('/jadwal/:id_data/:hari/:jam_ke', dataJadwal);
 router.get('/jadwallist/:id_jadwal?', jadwalList);
+router.get('/harijadwal/:hari?', hariJadwal);
+router.get('/agendasekarang', hariAgenda);
 router.post('/createagenda/', createAgenda);
 router.post('/createjadwal/', createJadwal);
 router.put('/updatejadwal/:id_jadwal', updateJadwal);

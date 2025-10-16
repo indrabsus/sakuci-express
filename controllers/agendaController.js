@@ -54,6 +54,58 @@ const dataAgenda = async (req, res) => {
   }
 };
 
+const hitungAgenda = async (req, res) => {
+  try {
+    const { id_data, bulan, tahun } = req.params;
+
+    // Ambil semua data agenda berdasarkan id_data
+    const agendaList = await Agenda.findAll({
+      where: { id_data },
+      raw: true,
+    });
+
+    const summary = { hadir: 0, sakit: 0, izin: 0, alpa: 0, tugas: 0 };
+    const dayStatus = new Map();
+
+    agendaList.forEach((item) => {
+      if (!item.created_at || !item.status) return; // antisipasi data kosong
+
+      // Tambahkan offset GMT+7 untuk waktu Indonesia
+      const localDate = new Date(new Date(item.created_at).getTime() + 7 * 60 * 60 * 1000);
+
+      const y = localDate.getFullYear();
+      const m = localDate.getMonth() + 1;
+
+      // Filter data sesuai bulan dan tahun yang diminta
+      if (y === parseInt(tahun) && m === parseInt(bulan)) {
+        const dateKey = localDate.toISOString().split("T")[0];
+
+        // Simpan status pertama yang muncul di hari itu (hindari duplikasi tanggal)
+        if (!dayStatus.has(dateKey)) {
+          dayStatus.set(dateKey, item.status.toLowerCase().trim());
+        }
+      }
+    });
+
+    // Hitung total per status
+    for (const status of dayStatus.values()) {
+      if (summary[status] !== undefined) {
+        summary[status]++;
+      }
+    }
+
+    return res.status(200).json(summary);
+
+  } catch (error) {
+    console.error("Error hitungAgenda:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
 const dataJadwal = async (req, res) => {
   try {
     const { id_data, hari, jam_ke } = req.params;
@@ -61,6 +113,88 @@ const dataJadwal = async (req, res) => {
     
       data = await Jadwal.findOne({
         where: { id_data, hari, jam_ke },
+      });
+
+    if (data) {
+      return res.status(200).json({
+        status: "success",
+        message: "Data ditemukan",
+        data,
+      });
+    }
+
+    return res.status(404).json({
+      status: "error",
+      message: "Belum ada data",
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
+const hariAgenda = async (req, res) => {
+  try {
+    const allAgenda = await Agenda.findAll();
+
+    if (!allAgenda || allAgenda.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Belum ada data agenda",
+      });
+    }
+
+    // Dapatkan tanggal hari ini (format YYYY-MM-DD)
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+
+    // Filter data agenda berdasarkan tanggal hari ini
+    const data = allAgenda.filter((a) => {
+      const agendaDate = new Date(a.created_at).toISOString().split("T")[0];
+      return agendaDate === todayStr;
+    });
+
+    if (data.length > 0) {
+      return res.status(200).json({
+        status: "success",
+        message: "Agenda hari ini ditemukan",
+        data,
+      });
+    }
+
+    return res.status(404).json({
+      status: "error",
+      message: "Belum ada data agenda untuk hari ini",
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
+const hariJadwal = async (req, res) => {
+  try {
+    const { hari } = req.params;
+
+    
+      data = await Jadwal.findAll({
+        include: [
+          { model: DataUser, as: "guru" },
+          { model: MataPelajaran, as: "mapel" },
+          { model: KelasPpdb, as: "kelas" }
+        ],
+        where: { hari },
+        order: [["jam_ke", "ASC"]]
       });
 
     if (data) {
@@ -670,7 +804,7 @@ const deleteJadwal = async (req, res) => {
   }
 };
 
-module.exports = { isiAgenda, cekUsername, getMateri, 
+module.exports = { isiAgenda, cekUsername, getMateri, hariAgenda,
   prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, 
   deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList,
-updateJadwal, deleteJadwal };
+updateJadwal, deleteJadwal, hitungAgenda, hariJadwal };
