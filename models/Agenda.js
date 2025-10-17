@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
+    tanggal_agenda: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
     materi: {
       type: DataTypes.STRING(255),
       allowNull: false,

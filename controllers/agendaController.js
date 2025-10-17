@@ -140,45 +140,16 @@ const dataJadwal = async (req, res) => {
 
 const hariAgenda = async (req, res) => {
   try {
-    const allAgenda = await Agenda.findAll();
+    const today = new Date().toISOString().split("T")[0];
 
-    if (!allAgenda || allAgenda.length === 0) {
-      return res.status(404).json({
-        status: "error",
-        message: "Belum ada data agenda",
-      });
-    }
-
-    // Dapatkan tanggal hari ini (format YYYY-MM-DD)
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
-
-    // Filter data agenda berdasarkan tanggal hari ini
-    const data = allAgenda.filter((a) => {
-      const agendaDate = new Date(a.created_at).toISOString().split("T")[0];
-      return agendaDate === todayStr;
+    const data = await Agenda.findAll({
+      where: where(fn("DATE", col("tanggal_agenda")), today),
     });
 
-    if (data.length > 0) {
-      return res.status(200).json({
-        status: "success",
-        message: "Agenda hari ini ditemukan",
-        data,
-      });
-    }
-
-    return res.status(404).json({
-      status: "error",
-      message: "Belum ada data agenda untuk hari ini",
-    });
-
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Terjadi kesalahan pada server",
-      error: error.message,
-    });
+    res.json({ status: "success", data });
+  } catch (e) {
+    console.error("Error:", e);
+    res.status(500).json({ status: "error", message: e.message });
   }
 };
 
@@ -288,6 +259,7 @@ const createAgenda = async (req, res) => {
     id_mapel,
     id_data,
     id_kelas,
+    tanggal_agenda,
     materi,
     tingkat,
     semester,
@@ -326,6 +298,7 @@ const createAgenda = async (req, res) => {
     // buat agenda baru
     const data = await Agenda.create({
       id_mapel,
+      tanggal_agenda,
       id_data,
       id_kelas,
       materi,
