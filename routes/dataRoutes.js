@@ -1,11 +1,13 @@
 const express = require('express');
 const proteksi = require('../middleware/authMiddleware');
 const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, 
-    dataMapel, createUser, deleteUser, dataUserFp } = require('../controllers/dataController');
+    dataMapel, createUser, deleteUser, dataUserFp, 
+    dataGuru} = require('../controllers/dataController');
 const router = express.Router();
 
 router.get('/siswa/:tingkat?/:id_kelas?', dataSiswa);
-router.get('/user/:id_user?', dataUser);
+router.get('/user/:id_data?', dataUser);
+router.get('/guru/', dataGuru);
 router.get('/userfp/:uid_fp?', dataUserFp);
 router.post('/createuser', createUser);
 router.get('/mapel', dataMapel);

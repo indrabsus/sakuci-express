@@ -188,18 +188,18 @@ const dataSiswa = async (req, res) => {
 
 const dataUser = async (req, res) => {
   try {
-    const { id_user } = req.params;
+    const { id_data } = req.params;
 
     let data;
 
-    if (id_user) {
+    if (id_data) {
       // Cari satu user spesifik
       data = await DataUser.findOne({
         include: [
           { model: User, as: "user" },
           { model: Agenda, as: "agenda" }
         ],
-        where: { id_user },
+        where: { id_data },
       });
     } else {
       // Ambil semua user sesuai role
@@ -211,6 +211,30 @@ const dataUser = async (req, res) => {
         order: [["uid_fp", "ASC"]],
       });
     }
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diambil!",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data.",
+      error: error.message,
+    });
+  }
+};
+
+const dataGuru = async (req, res) => {
+  try {
+    let data;
+      data = await DataUser.findAll({
+        include: [
+          { model: User, as: "user", where: { id_role: 6 } }
+        ],
+        order: [["uid_fp", "ASC"]],
+      });
 
     res.status(200).json({
       status: "success",
@@ -401,5 +425,6 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = {
-    detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp
+    detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
+    dataGuru
 }
