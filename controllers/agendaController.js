@@ -140,7 +140,10 @@ const dataJadwal = async (req, res) => {
 
 const hariAgenda = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    // Waktu sekarang dalam zona waktu lokal (WIB)
+    const offsetMs = 7 * 60 * 60 * 1000; // offset +7 jam
+    const local = new Date(Date.now() + offsetMs);
+    const today = local.toISOString().split("T")[0];
 
     const data = await Agenda.findAll({
       where: where(fn("DATE", col("tanggal_agenda")), today),
