@@ -75,8 +75,9 @@ const detailUser = async (req, res) => {
 const updateSiswa = async (req, res) => {
   try {
     const { id_siswa } = req.params;
-    const updateData = req.body;
+    const { no_rfid, ...updateData } = req.body;
 
+    // Cek apakah siswa dengan id_siswa ini ada
     const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
 
     if (!siswa) {
@@ -87,6 +88,27 @@ const updateSiswa = async (req, res) => {
       });
     }
 
+    // Jika no_rfid dikirim, cek apakah sudah digunakan oleh siswa lain
+    if (no_rfid) {
+      const duplikat = await SiswaPpdb.findOne({
+        where: {
+          no_rfid,
+          id_siswa: { [Op.ne]: id_siswa }, // pastikan bukan siswa yang sama
+        },
+      });
+
+      if (duplikat) {
+        return res.status(400).json({
+          status: "error",
+          message: `Nomor RFID ${no_rfid} sudah digunakan oleh siswa lain.`,
+        });
+      }
+
+      // Masukkan no_rfid ke data update
+      updateData.no_rfid = no_rfid;
+    }
+
+    // Lakukan update data siswa
     await siswa.update(updateData);
 
     res.status(200).json({
@@ -103,7 +125,6 @@ const updateSiswa = async (req, res) => {
     });
   }
 };
-
 const updateUser = async (req, res) => {
   try {
     const { id_user } = req.params;
