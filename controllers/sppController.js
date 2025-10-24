@@ -1,6 +1,8 @@
 const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb } = require("../models"); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where } = require("sequelize");
 const { axios, axiosInstance } = require("../config/axios");
+const fs = require("fs");
+const path = require("path");
 
 const masterSppData = async (req, res) => {
   const { tahun } = req.params; // atau req.query, tergantung rute
@@ -267,31 +269,53 @@ const updateLog = async (req, res) => {
 };
 
 const deleteLog = async (req, res) => {
-    const { id_logspp } = req.params;
+  const { id_logspp } = req.params;
 
-    try {
-        const data = await LogSpp.findByPk(id_logspp);
+  try {
+    const data = await LogSpp.findByPk(id_logspp);
 
-        if (!data) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'data tidak ditemukan!'
-            });
-        }
-
-        await data.destroy();
-
-        res.status(200).json({
-            status: 'success',
-            message: 'berhasil menghapus data!'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'gagal',
-            message: 'gagal menghapus data!',
-            error: error.message
-        });
+    if (!data) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan!",
+      });
     }
+
+    // Hapus file bukti jika ada
+    if (data.bukti) {
+      // Hilangkan slash depan kalau ada
+      const relativePath = data.bukti.startsWith("/")
+        ? data.bukti.substring(1)
+        : data.bukti;
+
+      // Arahkan ke lokasi sebenarnya
+      const filePath = path.join(__dirname, "..", relativePath);
+
+      console.log("Path file yang akan dihapus:", filePath);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`File ${filePath} berhasil dihapus`);
+      } else {
+        console.warn(`File ${filePath} tidak ditemukan`);
+      }
+    }
+
+    // Hapus data dari database
+    await data.destroy();
+
+    res.status(200).json({
+      status: "success",
+      message: "Berhasil menghapus data!",
+    });
+  } catch (error) {
+    console.error("Gagal menghapus data:", error);
+    res.status(500).json({
+      status: "gagal",
+      message: "Gagal menghapus data!",
+      error: error.message,
+    });
+  }
 };
 
 const deleteMaster = async (req, res) => {
