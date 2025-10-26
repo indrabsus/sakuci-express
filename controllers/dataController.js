@@ -14,8 +14,6 @@ const detailSiswa = async (req, res) => {
             where: { id_siswa },
         });
 
-        console.log("Hasil pencarian:", siswa);
-
         if (!siswa) {
             return res.status(404).json({
                 status: "error",
@@ -75,7 +73,7 @@ const detailUser = async (req, res) => {
 const updateSiswa = async (req, res) => {
   try {
     const { id_siswa } = req.params;
-    const { no_rfid, ...updateData } = req.body;
+    let { no_rfid, ...updateData } = req.body;
 
     // Cek apakah siswa dengan id_siswa ini ada
     const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
@@ -88,7 +86,12 @@ const updateSiswa = async (req, res) => {
       });
     }
 
-    // Jika no_rfid dikirim, cek apakah sudah digunakan oleh siswa lain
+    // Jika no_rfid dikirim dan bernilai "0", ubah jadi null
+    if (no_rfid === "0" || no_rfid === 0) {
+      no_rfid = null;
+    }
+
+    // Jika no_rfid dikirim dan bukan null, cek apakah sudah digunakan oleh siswa lain
     if (no_rfid) {
       const duplikat = await SiswaPpdb.findOne({
         where: {
@@ -103,10 +106,10 @@ const updateSiswa = async (req, res) => {
           message: `Nomor RFID ${no_rfid} sudah digunakan oleh siswa lain.`,
         });
       }
-
-      // Masukkan no_rfid ke data update
-      updateData.no_rfid = no_rfid;
     }
+
+    // Masukkan no_rfid (baik null atau value baru) ke updateData
+    updateData.no_rfid = no_rfid;
 
     // Lakukan update data siswa
     await siswa.update(updateData);
@@ -127,7 +130,7 @@ const updateSiswa = async (req, res) => {
 };
 const updateUser = async (req, res) => {
   try {
-    const { id_user } = req.params;
+    const { id_data } = req.params;
     let updateData = { ...req.body };
 
     // ✅ Normalisasi no_hp jika ada di request
@@ -135,7 +138,7 @@ const updateUser = async (req, res) => {
       updateData.no_hp = normalizePhone(updateData.no_hp);
     }
 
-    const user = await DataUser.findOne({ where: { id_user } });
+    const user = await DataUser.findOne({ where: { id_data } });
 
     if (!user) {
       return res.status(404).json({
@@ -444,8 +447,35 @@ const deleteUser = async (req, res) => {
         });
     }
 };
+const deleteSiswa = async (req, res) => {
+    const { id_siswa } = req.params;
+
+    try {
+        const data = await SiswaPpdb.findByPk(id_siswa);
+
+        if (!data) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'data tidak ditemukan!'
+            });
+        }
+
+        await data.destroy();
+
+        res.status(200).json({
+            status: 'success',
+            message: 'berhasil menghapus data!'
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'gagal',
+            message: 'gagal menghapus data!',
+            error: error.message
+        });
+    }
+};
 
 module.exports = {
     detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
-    dataGuru
+    dataGuru, deleteSiswa
 }

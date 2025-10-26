@@ -10,13 +10,12 @@ const sequelize = new Sequelize(dbName, dbUser, dbPass, {
   dialect: 'mysql',
   timezone: '+07:00', // Asia/Jakarta timezone
   dialectOptions: {
-    useUTC: false, // Jangan gunakan UTC
     dateStrings: true, // Simpan waktu sebagai string
     typeCast: true, // Konversi waktu otomatis
   },
   logging: false,
   define: {
-    timestamps: true, // Aktifkan timestamps
+    timestamps: true, // Aktifkan timestamps 
     underscored: true, // Gunakan snake_case
     createdAt: 'created_at',
     updatedAt: 'updated_at',

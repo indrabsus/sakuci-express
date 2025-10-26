@@ -1,4 +1,3 @@
-uploads
 .wwebjs_auth
 .wwebjs_cache
 node_modules
@@ -7,3 +6,4 @@ config/config.json
 .htaccess
 .git
 .env
+/uploads

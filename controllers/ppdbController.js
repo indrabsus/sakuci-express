@@ -244,8 +244,6 @@ const detailSiswa = async (req, res) => {
             where: { tahun, id_siswa },
         });
 
-        console.log("Hasil pencarian:", siswa);
-
         if (!siswa) {
             return res.status(404).json({
                 status: "error",

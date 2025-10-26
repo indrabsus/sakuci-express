@@ -2,7 +2,8 @@ const express = require('express');
 const proteksi = require('../middleware/authMiddleware');
 const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, 
     dataMapel, createUser, deleteUser, dataUserFp, 
-    dataGuru} = require('../controllers/dataController');
+    dataGuru,
+    deleteSiswa} = require('../controllers/dataController');
 const router = express.Router();
 
 router.get('/siswa/:tingkat?/:id_kelas?', dataSiswa);
@@ -14,7 +15,8 @@ router.get('/mapel', dataMapel);
 router.get('/detailsiswa/:id_siswa/',proteksi, detailSiswa);
 router.get('/detailuser/:id_user/',proteksi, detailUser);
 router.put('/updatesiswa/:id_siswa',proteksi, updateSiswa);
-router.put('/updateuser/:id_user',proteksi, updateUser);
+router.put('/updateuser/:id_data',proteksi, updateUser);
 router.delete('/deleteuser/:id_user',proteksi, deleteUser);
+router.delete('/deletesiswa/:id_siswa',proteksi, deleteSiswa);
 
 module.exports = router;
