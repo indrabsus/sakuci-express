@@ -475,7 +475,69 @@ const deleteSiswa = async (req, res) => {
     }
 };
 
+const hitungAbsen = async (req, res) => {
+  try {
+    const { id_siswa, id_data, id_mapel, bulan, tahun } = req.params;
+
+    // Siapkan kondisi dinamis untuk include (Agenda)
+    const agendaWhere = {};
+    if (id_data) agendaWhere.id_data = id_data;
+    if (id_mapel) agendaWhere.id_mapel = id_mapel;
+
+    // Siapkan include hanya jika ada filter id_data atau id_mapel
+    const include = Object.keys(agendaWhere).length
+      ? [{ model: Agenda, as: "agenda", where: agendaWhere }]
+      : [{ model: Agenda, as: "agenda" }];
+
+    // Ambil semua data absen berdasarkan id_siswa
+    const absenList = await AbsenSiswa.findAll({
+      include,
+      where: { id_siswa },
+      raw: true,
+    });
+
+    const summary = { s: 0, i: 0, a: 0, t: 0, d: 0 };
+    const dayStatus = new Map();
+
+    absenList.forEach((item) => {
+      if (!item.created_at || !item.keterangan) return;
+
+      // Konversi waktu ke lokal (GMT+7)
+      const localDate = new Date(new Date(item.created_at).getTime() + 7 * 60 * 60 * 1000);
+      const y = localDate.getFullYear();
+      const m = localDate.getMonth() + 1;
+
+      // Jika bulan & tahun diberikan, baru filter
+      if (
+        (!tahun || y === parseInt(tahun)) &&
+        (!bulan || m === parseInt(bulan))
+      ) {
+        const dateKey = localDate.toISOString().split("T")[0];
+        if (!dayStatus.has(dateKey)) {
+          dayStatus.set(dateKey, item.keterangan.toLowerCase().trim());
+        }
+      }
+    });
+
+    // Hitung jumlah per status
+    for (const status of dayStatus.values()) {
+      if (summary[status] !== undefined) {
+        summary[status]++;
+      }
+    }
+
+    return res.status(200).json(summary);
+  } catch (error) {
+    console.error("Error hitungAbsen:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Terjadi kesalahan pada server",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
     detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
-    dataGuru, deleteSiswa
+    dataGuru, deleteSiswa, hitungAbsen
 }
