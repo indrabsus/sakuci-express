@@ -4,7 +4,8 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 const { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, updateKelas, deleteKelas, hitungSiswa, siswaKelas, deleteSiswa, leaveSiswa, updateSiswa,
-createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, kelasDetail
+createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, kelasDetail, logPpdbDetail,
+updateLog
     
 } = require('../controllers/ppdbController');
 const router = express.Router();
@@ -29,18 +30,20 @@ const upload = multer({ storage });
 
 router.get('/siswa/:tahun/:status?', proteksi,  dataSiswa);
 router.put('/updatesiswa', proteksi, updateSiswa)
+router.put('/updatelog/:id_log', proteksi, updateLog)
 router.delete('/deletesiswa', proteksi, deleteSiswa)
 router.post('/undursiswa',proteksi, leaveSiswa)
 
 router.get('/tampilkelas/:id_siswa', tampilKelas)
 router.post('/postkelas', postKelas)
-router.get('/log/:tahun', proteksi, logPpdb);
+router.get('/log/:tahun', logPpdb);
+router.get('/logdetail/:id_log', logPpdbDetail);
 router.get('/detailsiswa/:id_siswa/:tahun', detailSiswa);
 router.post('/daftar', regisSiswa);
 
 router.post('/bayardaftar', proteksi, bayarDaftar);
 router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
-router.delete('/deletelog', proteksi, deleteLog);
+router.delete('/deletelog/:id_log', proteksi, deleteLog);
 
 router.get('/jurusan/:tahun?', jurusan);
 router.get('/detailjurusan/:id_jurusan?', jurusanDetail);

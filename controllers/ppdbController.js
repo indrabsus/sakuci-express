@@ -204,6 +204,30 @@ const logPpdb = async (req, res) => {
   }
 }
 
+const logPpdbDetail = async (req, res) => {
+  try {
+    const { id_log } = req.params; // Ambil tahun dari parameter URL
+
+    const siswa = await LogPpdb.findOne({
+      where: {
+        id_log
+      }
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: `Data Log PPDB berhasil diambil.`,
+      data: siswa,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data Log PPDB.',
+      error: error.message,
+    });
+  }
+}
+
 
 const dataSiswa = async (req, res) => {
     try {
@@ -585,7 +609,8 @@ const bayarPpdb = async (req, res) => {
 };
 
 const deleteLog = async (req, res) => {
-    const { jenis, id_siswa, id_log } = req.body;
+    const { id_log } = req.params;
+    const { jenis, id_siswa } = req.body;
     
     try {
         if (jenis === 'd') {
@@ -896,5 +921,39 @@ const leaveSiswa = async (req, res) => {
     }
 };
 
+const updateLog = async (req, res) => {
+  try {
+    const { id_log } = req.params;
+    const updateData = req.body;
+
+    const data = await LogPpdb.findOne({ where: { id_log } });
+
+    console.log("Data yang diperbarui:", data);
+
+    if (!data) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan.",
+        data: null,
+      });
+    }
+
+    await data.update(updateData);
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error saat update data:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Gagal update data.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
-kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa};
+kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog};
