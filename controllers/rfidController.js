@@ -2,6 +2,8 @@
 const { MasterRfid, SiswaPpdb, AbsenHarianSiswa, Temp } = require('../models');
 const { Op } = require('sequelize');
 const dayjs = require('dayjs');
+const { error } = require('qrcode-terminal');
+const { create } = require('qrcode');
 
 const rfidGlobal = async (req, res) => {
   try {
@@ -109,4 +111,85 @@ const deleteTemp = async (req, res) => {
   }
 };
 
-module.exports = { rfidGlobal, getTemp, deleteTemp };
+const masterRfid = async (req, res) => {
+  try {
+    const {id_rfid} = req.params
+    if(id_rfid){
+      const data = await MasterRfid.findOne({
+        where: {id_rfid}
+      })
+      if(!data){
+      return res.status(404).json({
+        message: "Data tidak ditemukan"
+      })
+    }
+    return res.json({
+      message: "Data ditemukan",
+      data
+    })
+    }
+    
+    const data = await MasterRfid.findAll();
+    return res.json(data);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+  }
+};
+
+const createMaster = async(req, res) => {
+  try {
+    const { kode_mesin, fungsi, ip_address } = req.body;
+    const data = await MasterRfid.create({
+      kode_mesin,
+      fungsi,
+      ip_address
+    })
+    return res.json({
+      message: "Data berhasil disimpan",
+      data
+    })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+  }
+};
+
+const updateMaster = async(req, res) => {
+  try {
+    const { id_rfid } = req.params;
+    const { kode_mesin, fungsi, ip_address } = req.body;
+    const data = await MasterRfid.update({
+      kode_mesin,
+      fungsi,
+      ip_address
+    }, {
+      where: {id_rfid}
+    })
+    return res.json({
+      message: "Data berhasil diupdate",
+      data
+    })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+  }
+};
+
+const deleteMaster = async(req, res) => {
+  try {
+    const { id_rfid } = req.params;
+    const data = await MasterRfid.destroy({
+      where: {id_rfid}
+    })
+    return res.json({
+      message: "Data berhasil dihapus",
+      data
+    })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+  }
+};
+
+module.exports = { rfidGlobal, getTemp, deleteTemp, masterRfid, createMaster, updateMaster, deleteMaster };

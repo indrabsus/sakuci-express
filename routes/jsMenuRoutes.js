@@ -3,8 +3,8 @@ const { dataMenu, parentMenu, createParent, updateParent, deleteParent, createMe
 const router = express.Router();
 const proteksi = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT
 
-router.get('/data', proteksi, dataMenu);
-router.get('/data/:id_sub_menu', proteksi, dataMenu);
+router.get('/data', dataMenu);
+router.get('/data/:id_sub_menu', dataMenu);
 router.get('/dataparent',proteksi, parentMenu);
 router.get('/dataparent/:id_menu',proteksi, parentMenu);
 router.post('/createparent',proteksi, createParent)
