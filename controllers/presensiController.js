@@ -125,16 +125,78 @@ const detailHarian = async (req, res) => {
 
         res.status(200).json({
             status: 'success',
-            message: 'berhasil menghapus data!',
+            message: 'berhasil baca data!',
             data
         });
     } catch (error) {
         res.status(500).json({
             status: 'gagal',
-            message: 'gagal menghapus data!',
+            message: 'gagal baca data!',
             error: error.message
         });
     }
 };
 
-module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian };
+const cekHarian = async (req, res) => {
+    const { id_siswa } = req.params;
+
+    try {
+        const startOfDay = dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const endOfDay = dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+        const data = await AbsenHarianSiswa.findOne({
+            where: {
+                id_siswa,
+                waktu: {
+                    [Op.between]: [startOfDay, endOfDay]
+                }
+            }
+        });
+
+        if (!data) {
+            return res.json({
+                status: "ok",
+                message: "belum absen",
+                kategori: "belum absen",
+                id_siswa,
+                tanggal: dayjs().format("YYYY-MM-DD")
+            });
+        }
+
+        // AMBIL JAM ABSEN SISWA
+        const jamAbsen = dayjs(data.waktu);
+
+        const batasOnTime = dayjs().hour(6).minute(30).second(0);
+        const batasToleransi = dayjs().hour(6).minute(45).second(0);
+
+        let kategori = "";
+
+        if (jamAbsen.isBefore(batasOnTime) || jamAbsen.isSame(batasOnTime)) {
+            kategori = "on time";
+        } else if (
+            jamAbsen.isAfter(batasOnTime) &&
+            (jamAbsen.isBefore(batasToleransi) || jamAbsen.isSame(batasToleransi))
+        ) {
+            kategori = "toleransi";
+        } else {
+            kategori = "terlambat";
+        }
+
+        return res.json({
+            status: "ok",
+            message: "hadir",
+            kategori, // <--- tambahan
+            id_siswa,
+            tanggal: dayjs().format("YYYY-MM-DD")
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            status: "gagal",
+            message: "gagal baca data!",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian };
