@@ -7,6 +7,6 @@ router.delete('/deleteharian/:id_harian', deleteHarian);
 router.get('/detailharian/:id_harian', detailHarian);
 router.get('/presensiharian/:id_kelas?', presensiHarian);
 router.get('/cekharian/:id_siswa', cekHarian);
-router.get('/logrfid', logRfid);
+router.get('/logrfid/:rest_api', logRfid);
 
 module.exports = router;
