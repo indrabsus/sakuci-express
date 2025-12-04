@@ -304,7 +304,7 @@ const tarik = async (req, res) => {
     }
 
     try {
-      await fetch(`${ip}/clear/${mesin}`);
+      await fetch(`http://${ip}/clear/${mesin}`);
     } catch {}
 
     return res.json({ message: "Data berhasil ditarik" });
