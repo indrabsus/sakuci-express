@@ -241,4 +241,73 @@ const logRfid = async (req, res) => {
   }
 };
 
-module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid };
+const tarik = async (req, res) => {
+  try {
+    const { ip, mesin } = req.params;
+
+    if (!ip || !mesin) {
+      return res.json({ message: "IP atau mesin tidak ada" });
+    }
+
+    const url = `http://${ip}/${mesin}`;
+
+    // ambil data dari mesin
+    const response = await fetch(url);
+    const rfidData = await response.json();
+
+    if (!Array.isArray(rfidData)) {
+      return res.status(500).json({
+        message: "Format data dari mesin tidak valid"
+      });
+    }
+
+    for (let d of rfidData) {
+      const uid = d.uid;
+      const timestamp = d.timestamp;
+
+      // skip weekend
+      const day = new Date(timestamp).getDay();
+      if (day === 0 || day === 6) continue;
+
+      // cari siswa
+      const siswa = await SiswaPpdb.findOne({
+        where: { no_rfid: uid }
+      });
+
+      if (!siswa) continue;
+
+      const tanggal = timestamp.split(" ")[0];
+
+      // cek absensi hari itu
+      const sudahAda = await AbsenHarianSiswa.findOne({
+        where: {
+          id_siswa: siswa.id_siswa,
+          waktu: { [Op.like]: `${tanggal}%` }
+        }
+      });
+
+      if (sudahAda) continue;
+
+      await AbsenHarianSiswa.create({
+        id_siswa: siswa.id_siswa,
+        status: "0",
+        waktu: timestamp
+      });
+    }
+
+    // clear alat
+    // try {
+    //   await fetch(`${ip}/clear/${mesin}`);
+    // } catch {}
+
+    return res.json({ message: "Data berhasil ditarik" });
+
+  } catch (err) {
+    return res.status(500).json({
+      message: "Terjadi kesalahan server",
+      error: err.message
+    });
+  }
+};
+
+module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid, tarik };
