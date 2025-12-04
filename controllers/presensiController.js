@@ -263,10 +263,10 @@ const tarik = async (req, res) => {
 
     for (let d of rfidData) {
       const uid = d.uid;
-      const timestamp = d.timestamp;
+      const timestamp = new Date(d.timestamp);
 
       // skip weekend
-      const day = new Date(timestamp).getDay();
+      const day = timestamp.getDay();
       if (day === 0 || day === 6) continue;
 
       // cari siswa
@@ -276,29 +276,32 @@ const tarik = async (req, res) => {
 
       if (!siswa) continue;
 
-      const tanggal = timestamp.split(" ")[0];
+      // buat range hari (00:00 - 23:59)
+      const startDay = new Date(timestamp);
+      startDay.setHours(0, 0, 0, 0);
 
-      // cek absensi hari itu
+      const endDay = new Date(timestamp);
+      endDay.setHours(23, 59, 59, 999);
+
+      // cek apakah sudah ada absen di hari yang sama
       const sudahAda = await AbsenHarianSiswa.findOne({
         where: {
           id_siswa: siswa.id_siswa,
-          waktu: { [Op.like]: `${tanggal}%` }
+          waktu: {
+            [Op.between]: [startDay, endDay]
+          }
         }
       });
 
-      if (sudahAda) continue;
+      if (sudahAda) continue; // skip duplikat
 
+      // simpan absen
       await AbsenHarianSiswa.create({
         id_siswa: siswa.id_siswa,
         status: "0",
         waktu: timestamp
       });
     }
-
-    // clear alat
-    // try {
-    //   await fetch(`${ip}/clear/${mesin}`);
-    // } catch {}
 
     return res.json({ message: "Data berhasil ditarik" });
 
