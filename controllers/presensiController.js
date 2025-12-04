@@ -215,7 +215,7 @@ const logRfid = async (req, res) => {
     });
 
     const mapUid = {};
-    dataSiswa.forEach(s => mapUid[s.uid] = s);
+    dataSiswa.forEach(s => mapUid[s.no_rfid] = s);
 
     const hasil = logs.map(item => ({
       uid: item.uid,
