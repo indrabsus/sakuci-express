@@ -199,4 +199,35 @@ const cekHarian = async (req, res) => {
     }
 };
 
-module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian };
+const logRfid = async (req, res) => {
+  try {
+    const response = await fetch("http://192.168.105.18/SKC-001");
+    const logs = await response.json();
+
+    const dataSiswa = await SiswaPpdb.findAll({
+      include: [
+        {
+          model: SiswaBaru,
+          as: "siswa_baru",
+          include: [{ model: KelasPpdb, as: "kelas_ppdb" }]
+        }
+      ]
+    });
+
+    const mapUid = {};
+    dataSiswa.forEach(s => mapUid[s.uid] = s);
+
+    const hasil = logs.map(item => ({
+      uid: item.uid,
+      waktu: item.timestamp,
+      siswa: mapUid[item.uid] ?? null
+    }));
+
+    return res.json(hasil);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid };
