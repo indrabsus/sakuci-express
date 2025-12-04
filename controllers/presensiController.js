@@ -201,8 +201,8 @@ const cekHarian = async (req, res) => {
 
 const logRfid = async (req, res) => {
   try {
-    const {rest_api} = req.params;
-    const response = await fetch(`http://${rest_api}`);
+    const {url, mesin} = req.params;
+    const response = await fetch(`http://${url}/${mesin}`);
     const logs = await response.json();
 
     const dataSiswa = await SiswaPpdb.findAll({
