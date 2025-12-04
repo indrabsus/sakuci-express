@@ -201,10 +201,18 @@ const cekHarian = async (req, res) => {
 
 const logRfid = async (req, res) => {
   try {
-    const {url, mesin} = req.params;
+    const { url, mesin } = req.params;
+
+    // --- VALIDASI AWAL ---
+    if (!url || !mesin) {
+      return res.json([]); // kosongkan hasil
+    }
+
+    // --- AMBIL DATA DARI MESIN ---
     const response = await fetch(`http://${url}/${mesin}`);
     const logs = await response.json();
 
+    // --- AMBIL DATA SISWA ---
     const dataSiswa = await SiswaPpdb.findAll({
       include: [
         {
@@ -215,9 +223,11 @@ const logRfid = async (req, res) => {
       ]
     });
 
+    // --- BUAT MAP UNTUK JOIN ---
     const mapUid = {};
     dataSiswa.forEach(s => mapUid[s.no_rfid] = s);
 
+    // --- JOIN MANUAL ---
     const hasil = logs.map(item => ({
       uid: item.uid,
       waktu: item.timestamp,
