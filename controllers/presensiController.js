@@ -203,16 +203,13 @@ const logRfid = async (req, res) => {
   try {
     const { url, mesin } = req.params;
 
-    // --- VALIDASI AWAL ---
     if (!url || !mesin) {
-      return res.json([]); // kosongkan hasil
+      return res.json([]);
     }
 
-    // --- AMBIL DATA DARI MESIN ---
     const response = await fetch(`http://${url}/${mesin}`);
     const logs = await response.json();
 
-    // --- AMBIL DATA SISWA ---
     const dataSiswa = await SiswaPpdb.findAll({
       include: [
         {
@@ -223,16 +220,16 @@ const logRfid = async (req, res) => {
       ]
     });
 
-    // --- BUAT MAP UNTUK JOIN ---
     const mapUid = {};
-    dataSiswa.forEach(s => mapUid[s.no_rfid] = s);
+    dataSiswa.forEach(s => (mapUid[s.no_rfid] = s));
 
-    // --- JOIN MANUAL ---
-    const hasil = logs.map(item => ({
-      uid: item.uid,
-      waktu: item.timestamp,
-      siswa: mapUid[item.uid] ?? null
-    }));
+    const hasil = logs
+      .map(item => ({
+        uid: item.uid,
+        waktu: item.timestamp,
+        siswa: mapUid[item.uid] ?? null
+      }))
+      .filter(item => item.siswa !== null); // hanya data valid
 
     return res.json(hasil);
 
