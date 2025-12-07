@@ -1,10 +1,14 @@
 const express = require('express');
 const proteksi = require('../middleware/authMiddleware');
+const uploadDokumen = require('../middleware/uploadDokumen');
 const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, 
     dataMapel, createUser, deleteUser, dataUserFp, 
     dataGuru,
     deleteSiswa,
-    hitungAbsen} = require('../controllers/dataController');
+    hitungAbsen,
+    dokumenData, uploadData,
+    updateDokumen,
+    deleteDokumen} = require('../controllers/dataController');
 const router = express.Router();
 
 router.get('/siswa/:tingkat?/:id_kelas?', dataSiswa);
@@ -20,5 +24,9 @@ router.put('/updatesiswa/:id_siswa',proteksi, updateSiswa);
 router.put('/updateuser/:id_data',proteksi, updateUser);
 router.delete('/deleteuser/:id_user',proteksi, deleteUser);
 router.delete('/deletesiswa/:id_siswa',proteksi, deleteSiswa);
+router.get('/dokumen/:id_dokumen?', dokumenData);
+router.put('/updatedokumen/:id_dokumen', updateDokumen);
+router.post("/upload", uploadDokumen.single("file"), uploadData);
+router.delete('/deletedokumen/:id_dokumen',proteksi, deleteDokumen);
 
 module.exports = router;

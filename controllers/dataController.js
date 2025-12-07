@@ -1,8 +1,9 @@
 const {SiswaPpdb, LogPpdb, KelasPpdb, SiswaBaru, LogSpp, DataUser, AbsenHarianSiswa, User, MataPelajaran,
-  Agenda, AbsenSiswa, Nilai
+  Agenda, AbsenSiswa, Nilai, Dokumen, Role
 } = require('../models'); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const {axios, axiosInstance} = require('../config/axios');
+const fs = require("fs");
+const path = require("path");
 const bcrypt = require('bcrypt');
 
 const detailSiswa = async (req, res) => {
@@ -537,7 +538,124 @@ const hitungAbsen = async (req, res) => {
   }
 };
 
+const dokumenData = async(req, res) => {
+    try {
+      const id_dokumen = req.params.id_dokumen;
+      if(id_dokumen) {
+        const data = await Dokumen.findOne({
+            include: [
+                { model: User, as: "user",
+                  include: [{ model: DataUser }]
+                 },
+            ],
+            where: { id_dokumen },
+        });
+        return res.status(200).json(data);
+      }
+        const data = await Dokumen.findAll({
+            include: [
+                { model: User, as: "user",
+                  include: [{ model: DataUser }]
+                 },
+            ],
+            order: [["id_dokumen", "DESC"]],
+        });
+        return res.status(200).json(data);
+    } catch (error) {
+        return res.status(500).json({
+            status: "error",
+            message: "Gagal mengambil data.",
+            error: error.message,
+        });
+    }
+}
+
+const uploadData = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: "error",
+        message: "File tidak ditemukan",
+      });
+    }
+
+    const data = await Dokumen.create({
+      id_user: req.body.id_user,
+      nama_dokumen: req.body.nama_dokumen,
+      kategori: req.body.kategori,
+      link: `/uploads/dokumen/${req.body.id_user}/${req.body.kategori}/${req.file.filename}`,
+    });
+
+    return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal upload dokumen",
+      error: error.message,
+    });
+  }
+};
+
+const updateDokumen = async(req, res) => {
+  try{
+    const { id_dokumen } = req.params;
+    const { nama_dokumen } = req.body;
+    const data = await Dokumen.update({ nama_dokumen}, { where: { id_dokumen } });
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal update dokumen",
+      error: error.message,
+    });
+  }
+}
+
+const deleteDokumen = async (req, res) => {
+  try {
+    const { id_dokumen } = req.params;
+
+    const dok = await Dokumen.findOne({ where: { id_dokumen } });
+
+    if (!dok) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data dokumen tidak ditemukan",
+      });
+    }
+
+    // Ambil root project
+    const rootPath = path.join(__dirname, "../");
+
+    // dok.link = "/uploads/dokumen/1/17650xxxx.pdf"
+    const filePath = path.join(rootPath, dok.link);
+
+    console.log("File path:", filePath);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log("File deleted.");
+    } else {
+      console.log("File not found.");
+    }
+
+    await Dokumen.destroy({ where: { id_dokumen } });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Dokumen dan file berhasil dihapus",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal delete dokumen",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
     detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
-    dataGuru, deleteSiswa, hitungAbsen
+    dataGuru, deleteSiswa, hitungAbsen, dokumenData, uploadData, updateDokumen, deleteDokumen
 }
