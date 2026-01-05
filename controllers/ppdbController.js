@@ -206,19 +206,46 @@ const logPpdb = async (req, res) => {
 
 const logPpdbDetail = async (req, res) => {
   try {
-    const { id_log } = req.params; // Ambil tahun dari parameter URL
+    const { id_log, id_siswa } = req.query;
 
-    const siswa = await LogPpdb.findOne({
-      where: {
-        id_log
-      }
-    });
+    const where = {};
+    if (id_log) where.id_log = id_log;
+    if (id_siswa) where.id_siswa = id_siswa;
+
+    const data = id_log
+      ? await LogPpdb.findOne({ where })
+      : await LogPpdb.findAll({ where });
+
+    // ====== HITUNG KEUANGAN SISWA ======
+    let keuangan_siswa = null;
+
+    if (id_siswa && Array.isArray(data)) {
+      keuangan_siswa = {
+        d: 0, // daftar
+        p: 0, // pembayaran
+        l: 0, // lain-lain (jika ada)
+      };
+
+      data.forEach(item => {
+        const nominal = Number(item.nominal) || 0;
+
+        if (item.jenis === 'd') {
+          keuangan_siswa.d += nominal;
+        } else if (item.jenis === 'p') {
+          keuangan_siswa.p += nominal;
+        } else if (item.jenis === 'l') {
+          keuangan_siswa.l += nominal;
+        }
+      });
+    }
 
     res.status(200).json({
       status: 'success',
-      message: `Data Log PPDB berhasil diambil.`,
-      data: siswa,
+      message: 'Data Log PPDB berhasil diambil.',
+      data,
+      keuangan_siswa,
     });
+
   } catch (error) {
     res.status(500).json({
       status: 'error',
@@ -226,7 +253,7 @@ const logPpdbDetail = async (req, res) => {
       error: error.message,
     });
   }
-}
+};
 
 
 const dataSiswa = async (req, res) => {
@@ -518,11 +545,9 @@ Note: Ini adalah whatsapp BOT, Jangan Balas Pesan ini! Terima Kasih`,
 
 
 const bayarDaftar = async (req, res) => {
-    const { jenis, id_siswa, petugas } = req.body;
+    const { id_siswa, petugas, nominal, bayar } = req.body;
+    const bukti = req.file ? `/uploads/bukti/${req.file.filename}` : null;
     
-    if (!jenis) {
-        return res.status(400).json({ error: 'Jenis is required' });
-    }
 
     try {
         const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
@@ -530,25 +555,24 @@ const bayarDaftar = async (req, res) => {
             return res.status(404).json({ error: 'Siswa not found' });
         }
 
-        const noInvoice = `D-${jenis.toUpperCase()}-${moment().format('DDMMYYYYH')}${siswa.id_siswa}`;
+        const noInvoice = `D-${moment().format('DDMMYYYYH')}${siswa.id_siswa}`;
         const cek = await LogPpdb.count({ where: { no_invoice: noInvoice } });
         
         if (cek < 1) {
             if (siswa.bayar_daftar === 'n') {
-                const data = await MasterPpdb.findOne({ where: { tahun: moment().format('YYYY') } });
-                
-                if (data) {
+              const noInvoiceCreated = `P-${moment().format('DDMMYYYYHH')}-${id_siswa.substring(0, 3)}`;
                     await LogPpdb.create({
-                        id_siswa: siswa.id_siswa,
-                        nominal: data.daftar,
-                        no_invoice: `D-${jenis.toUpperCase()}-${moment().format('DDMMYYYYH')}-${siswa.id_siswa.substring(0, 3)}`,
+                        id_siswa,
+                        nominal,
+                        no_invoice: noInvoiceCreated,
                         jenis: 'd',
-                        petugas: petugas
+                        petugas: petugas,
+                        bukti,
+                        bayar
                     });
                     
                     await SiswaPpdb.update({ bayar_daftar: 'y' }, { where: { id_siswa } });
-                    return res.json({ message: 'Berhasil daftar!' });
-                }
+                    return res.json({ message: 'Berhasil daftar!', status: 'ok' });
             }
         } else {
             return res.status(400).json({ error: 'Tunggu beberapa saat!' });
