@@ -5,7 +5,10 @@ const path = require("path");
 const crypto = require("crypto");
 const { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, updateKelas, deleteKelas, hitungSiswa, siswaKelas, deleteSiswa, leaveSiswa, updateSiswa,
 createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, kelasDetail, logPpdbDetail,
-updateLog
+updateLog,
+createMaster,
+updateMaster,
+deleteMaster
     
 } = require('../controllers/ppdbController');
 const router = express.Router();
@@ -30,11 +33,11 @@ const upload = multer({ storage });
 
 router.get('/siswa/:tahun/:status?', dataSiswa);
 router.put('/updatesiswa', proteksi, updateSiswa)
-router.put('/updatelog/:id_log', proteksi, updateLog)
+router.put('/updatelog/:id_log', proteksi,upload.single("bukti"), updateLog)
 router.delete('/deletesiswa', proteksi, deleteSiswa)
 router.post('/undursiswa',proteksi, leaveSiswa)
 
-router.get('/tampilkelas/:id_siswa', tampilKelas)
+router.get('/tampilkelas', tampilKelas)
 router.post('/postkelas', postKelas)
 router.get('/log/:tahun', logPpdb);
 router.get('/logdetail/:id_log?', logPpdbDetail);
@@ -50,9 +53,14 @@ router.get('/detailjurusan/:id_jurusan?', jurusanDetail);
 router.post('/createjurusan',proteksi, createJurusan)
 router.put('/updatejurusan', proteksi,updateJurusan)
 router.delete('/deletejurusan',proteksi, deleteJurusan)
-router.get('/masterppdb/:tahun?', masterPpdb);
 
-router.get('/kelasppdb/:tahun', kelas)
+router.get('/masterppdb/:id_ppdb?', masterPpdb);
+router.post('/createmaster', createMaster);
+router.put('/updatemaster/:id_ppdb', updateMaster);
+router.delete('/deletemaster/:id_ppdb', deleteMaster);
+
+
+router.get('/kelas', kelas)
 router.get('/hitungsiswa/:id_kelas', hitungSiswa)
 router.get('/detailkelas/:id_kelas?', kelasDetail);
 router.post('/createkelas', createKelas)

@@ -44,9 +44,9 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true,
   });
 
-//   KelasPpdb.associate = (models) => {
-//     KelasPpdb.belongsTo(models.JurusanPpdb, { foreignKey: 'id_jurusan', as: 'jurusan_ppdb' });
-//   };
+  KelasPpdb.associate = (models) => {
+    KelasPpdb.belongsTo(models.JurusanPpdb, { foreignKey: 'id_jurusan', as: 'jurusan_ppdb' });
+  };
 
   return KelasPpdb;
 };

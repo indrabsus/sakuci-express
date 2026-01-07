@@ -2,33 +2,47 @@ const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = requ
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
 const moment = require('moment');
+const fs = require("fs");
+const path = require("path");
 
 const kelas = async (req, res) => {
-    const {tahun} = req.params;
+  const { tahun } = req.query; // ⬅️ jadikan query biar opsional
+
   try {
     const data = await KelasPpdb.findAll({
-      include: [{ model: JurusanPpdb, as: 'jurusan_ppdb',required: true,
-      
-          include:[{
-              model: MasterPpdb, as: 'master_ppdb',
-              where: {tahun}
-          }]
-      }]
+      include: [
+        {
+          model: JurusanPpdb,
+          as: 'jurusan_ppdb',
+          required: true,
+          include: [
+            {
+              model: MasterPpdb,
+              as: 'master_ppdb',
+              required: true,
+              ...(tahun && {
+                where: { tahun },
+              }),
+            },
+          ],
+        },
+      ],
     });
 
     res.status(200).json({
       status: 'success',
       message: 'Data berhasil diambil.',
-      data
+      data,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil data kelas.',
       error: error.message,
     });
   }
-}
+};
 
 const kelasDetail = async (req, res) => {
       const {id_kelas} = req.params;
@@ -632,22 +646,49 @@ const bayarPpdb = async (req, res) => {
   }
 };
 
+
+
 const deleteLog = async (req, res) => {
-    const { id_log } = req.params;
-    const { jenis, id_siswa } = req.body;
-    
-    try {
-        if (jenis === 'd') {
-            await SiswaPpdb.update({ bayar_daftar: 'n' }, { where: { id_siswa } });
-        }
-        
-        await LogPpdb.destroy({ where: { id_log } });
-        return res.json({ message: 'Data berhasil dihapus' });
-    } catch (error) {
-        console.error("Error deleting log:", error);
-        return res.status(500).json({ error: 'Internal server error', details: error.message });
+  const { id_log } = req.params;
+  const { jenis, id_siswa } = req.body;
+
+  try {
+    // 🔹 ambil data log dulu
+    const log = await LogPpdb.findOne({ where: { id_log } });
+
+    if (!log) {
+      return res.status(404).json({ message: "Data tidak ditemukan" });
     }
-}
+
+    // 🔹 hapus file bukti kalau ada
+    if (log.bukti) {
+      const filePath = path.join(__dirname, "..", log.bukti);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // 🔹 update siswa kalau jenis daftar
+    if (jenis === "d") {
+      await SiswaPpdb.update(
+        { bayar_daftar: "n" },
+        { where: { id_siswa } }
+      );
+    }
+
+    // 🔹 hapus log
+    await LogPpdb.destroy({ where: { id_log } });
+
+    return res.json({ message: "Data & bukti berhasil dihapus" });
+  } catch (error) {
+    console.error("Error deleting log:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+    });
+  }
+};
 
 const postKelas = async (req, res) => {
     const { id_siswa, id_kelas } = req.body;
@@ -744,22 +785,30 @@ const tampilKelas = async(req, res) => {
 
 
 const masterPpdb = async (req, res) => {
-  const { tahun } = req.params;
-
-  // Jika tahun tidak ada, ambil semua data
-  const whereClause = tahun ? { tahun } : {};
+  const { id_ppdb } = req.params; // ⬅️ query, bukan params
 
   try {
-    const data = await MasterPpdb.findOne({
-      where: whereClause,
-    });
+    let data;
+
+    if (id_ppdb) {
+      // 🔹 Kalau ada tahun → ambil 1 data
+      data = await MasterPpdb.findOne({
+        where: { id_ppdb },
+      });
+    } else {
+      // 🔹 Kalau tidak ada tahun → ambil semua
+      data = await MasterPpdb.findAll({
+        order: [["tahun", "DESC"]],
+      });
+    }
 
     return res.status(200).json({
       status: "success",
-      message: `Data berhasil diambil${tahun ? ` untuk tahun ${tahun}` : ""}.`,
+      message: "Data berhasil diambil",
       data,
     });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({
       status: "error",
       message: "Gagal mengambil data.",
@@ -767,6 +816,79 @@ const masterPpdb = async (req, res) => {
     });
   }
 };
+
+const createMaster = async(req, res) => {
+  try {
+    const {daftar, ppdb, token_telegram, chat_id, tahun, kode_akses} = req.body;
+    const data = await MasterPpdb.create({
+        daftar, ppdb, token_telegram, chat_id, tahun, kode_akses
+    })
+    if(!data){
+        res.status(404).json({
+            status: 'error',
+            message: 'Gagal menambahkan data',
+        })
+    }
+    res.status(200).json({
+        status: 'success',
+        message: 'Data berhasil ditambahkan',
+        data
+    })
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data.',
+      error: error.message,
+    });
+  }
+}
+
+const updateMaster = async (req, res) => {
+  const { daftar, ppdb, token_telegram, chat_id, tahun, kode_akses } = req.body;
+  const { id_ppdb } = req.params;
+
+  try {
+    const [updated] = await MasterPpdb.update(
+      { daftar, ppdb, token_telegram, chat_id, tahun, kode_akses },
+      { where: { id_ppdb } }
+    );
+
+    if (updated === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+    });
+  } catch (error) {
+    console.error("Error saat update data:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal update data.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteMaster = async(req, res) => {
+  try {
+    const { id_ppdb } = req.params;
+    const data = await MasterPpdb.destroy({
+      where: {id_ppdb}
+    })
+    return res.json({
+      message: "Data berhasil dihapus",
+      data
+    })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+  }
+}
 
 const createJurusan = async(req, res) => {
     const {nama_jurusan, id_ppdb} = req.body
@@ -948,11 +1070,8 @@ const leaveSiswa = async (req, res) => {
 const updateLog = async (req, res) => {
   try {
     const { id_log } = req.params;
-    const updateData = req.body;
 
     const data = await LogPpdb.findOne({ where: { id_log } });
-
-    console.log("Data yang diperbarui:", data);
 
     if (!data) {
       return res.status(404).json({
@@ -962,13 +1081,26 @@ const updateLog = async (req, res) => {
       });
     }
 
+    const updateData = {
+      nominal: req.body.nominal,
+      bayar: req.body.bayar,
+      petugas: req.body.petugas,
+      created_at: req.body.created_at,
+    };
+
+    // kalau upload bukti ada
+    if (req.file) {
+      updateData.bukti = `/uploads/bukti/${req.file.filename}`;
+    }
+
     await data.update(updateData);
 
     res.status(200).json({
       status: "success",
       message: "Data berhasil diperbarui.",
-      data: data,
+      data,
     });
+
   } catch (error) {
     console.error("Error saat update data:", error);
     res.status(500).json({
@@ -980,4 +1112,5 @@ const updateLog = async (req, res) => {
 };
 
 module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
-kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog};
+kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
+updateMaster, deleteMaster};
