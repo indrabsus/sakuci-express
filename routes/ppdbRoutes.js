@@ -63,8 +63,8 @@ router.get('/kelas', kelas)
 router.get('/hitungsiswa/:id_kelas', hitungSiswa)
 router.get('/detailkelas/:id_kelas?', kelasDetail);
 router.post('/createkelas', createKelas)
-router.put('/updatekelas', proteksi, updateKelas)
-router.delete('/deletekelas', proteksi, deleteKelas)
+router.put('/updatekelas/:id_kelas', proteksi, updateKelas)
+router.delete('/deletekelas/:id_kelas', proteksi, deleteKelas)
 
 router.get('/siswakelas/:tahun?/:id_kelas?', siswaKelas)
 module.exports = router;

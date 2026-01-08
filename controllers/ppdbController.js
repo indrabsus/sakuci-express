@@ -6,43 +6,61 @@ const fs = require("fs");
 const path = require("path");
 
 const kelas = async (req, res) => {
-  const { tahun } = req.query; // ⬅️ jadikan query biar opsional
+  const { tahun, id_kelas } = req.query
 
   try {
-    const data = await KelasPpdb.findAll({
-      include: [
-        {
-          model: JurusanPpdb,
-          as: 'jurusan_ppdb',
-          required: true,
-          include: [
-            {
-              model: MasterPpdb,
-              as: 'master_ppdb',
-              required: true,
-              ...(tahun && {
-                where: { tahun },
-              }),
-            },
-          ],
-        },
-      ],
-    });
+    const include = [
+      {
+        model: JurusanPpdb,
+        as: 'jurusan_ppdb',
+        required: true,
+        include: [
+          {
+            model: MasterPpdb,
+            as: 'master_ppdb',
+            required: true,
+            ...(tahun && {
+              where: { tahun },
+            }),
+          },
+        ],
+      },
+    ]
+
+    const order = [
+      [
+        { model: JurusanPpdb, as: 'jurusan_ppdb' },
+        { model: MasterPpdb, as: 'master_ppdb' },
+        'tahun',
+        'DESC'
+      ]
+    ]
+
+    const data = id_kelas
+      ? await KelasPpdb.findOne({
+          where: { id_kelas },
+          include,
+        })
+      : await KelasPpdb.findAll({
+          include,
+          order,
+        })
 
     res.status(200).json({
       status: 'success',
       message: 'Data berhasil diambil.',
       data,
-    });
+    })
+
   } catch (error) {
-    console.error(error);
+    console.error(error)
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil data kelas.',
       error: error.message,
-    });
+    })
   }
-};
+}
 
 const kelasDetail = async (req, res) => {
       const {id_kelas} = req.params;
@@ -74,10 +92,10 @@ const kelasDetail = async (req, res) => {
 }
 
 const createKelas = async(req, res) => {
-    const {nama_kelas, id_jurusan, max} = req.body
+    const {nama_kelas, id_jurusan, max, tingkat} = req.body
     try{
         const data = await KelasPpdb.create({
-            nama_kelas, id_jurusan, max
+            nama_kelas, id_jurusan, max, tingkat
         })
         if(!data){
             res.status(404).json({
@@ -100,7 +118,8 @@ const createKelas = async(req, res) => {
 }
 
 const updateKelas = async (req, res) => {
-  const { nama_kelas, id_jurusan, max, id_kelas } = req.body;
+  const { nama_kelas, id_jurusan, max } = req.body;
+  const { id_kelas } = req.params;
 
   try {
     const [updated] = await KelasPpdb.update(
@@ -129,7 +148,7 @@ const updateKelas = async (req, res) => {
 };
 
 const deleteKelas = async (req, res) => {
-    const {id_kelas} = req.body;
+    const {id_kelas} = req.params;
     try {
         const data = await KelasPpdb.destroy({
             where:{id_kelas}
