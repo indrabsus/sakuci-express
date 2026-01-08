@@ -499,64 +499,43 @@ Note: Ini adalah whatsapp BOT, Jangan Balas Pesan ini! Terima Kasih`,
 };
 
   const jurusan = async (req, res) => {
-      const {tahun} = req.params;
-    try {
-        let whereCondition = {}; // Default tanpa filter
+  const { id_jurusan } = req.params
 
-    if (tahun) {
-      whereCondition.tahun = tahun; // Filter tahun hanya jika ada parameter
-    }
-//   const tahunSekarang = new Date().getFullYear();
-  const jurusanPpdb = await JurusanPpdb.findAll({
-      include:[{
-          model: MasterPpdb, as: 'master_ppdb',
-          where:whereCondition
-      }]
-  })
-   res.status(200).json({
-     status: 'success',
-     message: 'Data siswa berhasil diambil.',
-     data: jurusanPpdb,
-   });
- } catch (error) {
-   res.status(500).json({
-     status: 'error',
-     message: 'Gagal mengambil data siswa.',
-     error: error.message,
-   });
- }
+  try {
+    const include = [{
+      model: MasterPpdb,
+      as: 'master_ppdb'
+    }]
+
+    const order = [
+      [{ model: MasterPpdb, as: 'master_ppdb' }, 'tahun', 'DESC'],
+      ['nama_jurusan', 'ASC'] // optional biar rapi
+    ]
+
+    const jurusanPpdb = id_jurusan
+      ? await JurusanPpdb.findOne({
+          where: { id_jurusan },
+          include,
+        })
+      : await JurusanPpdb.findAll({
+          include,
+          order
+        })
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Data jurusan berhasil diambil.',
+      data: jurusanPpdb,
+    })
+
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data jurusan.',
+      error: error.message,
+    })
+  }
 }
-
- const jurusanDetail = async (req, res) => {
-      const {id_jurusan} = req.params;
-    try {
-        let whereCondition = {}; // Default tanpa filter
-
-    if (id_jurusan) {
-      whereCondition.id_jurusan = id_jurusan; // Filter tahun hanya jika ada parameter
-    }
-//   const tahunSekarang = new Date().getFullYear();
-  const jurusanPpdb = await JurusanPpdb.findOne({
-      where:whereCondition,
-      include:[{
-          model: MasterPpdb, as: "master_ppdb"
-      }]
-  })
-   res.status(200).json({
-     status: 'success',
-     message: 'Data siswa berhasil diambil.',
-     data: jurusanPpdb,
-   });
- } catch (error) {
-   res.status(500).json({
-     status: 'error',
-     message: 'Gagal mengambil data siswa.',
-     error: error.message,
-   });
- }
-}
-
-
 
 const bayarDaftar = async (req, res) => {
     const { id_siswa, petugas, nominal, bayar } = req.body;
@@ -917,7 +896,8 @@ const createJurusan = async(req, res) => {
 }
 
 const updateJurusan = async (req, res) => {
-  const { nama_jurusan, id_ppdb, id_jurusan } = req.body;
+  const { nama_jurusan, id_ppdb } = req.body;
+  const { id_jurusan } = req.params;
 
   try {
     const [updated] = await JurusanPpdb.update(
@@ -946,7 +926,7 @@ const updateJurusan = async (req, res) => {
 };
 
 const deleteJurusan = async (req, res) => {
-    const {id_jurusan} = req.body;
+    const {id_jurusan} = req.params;
     try {
         const data = await JurusanPpdb.destroy({
             where:{id_jurusan}
@@ -1111,6 +1091,6 @@ const updateLog = async (req, res) => {
   }
 };
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
 kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
 updateMaster, deleteMaster};

@@ -48,11 +48,10 @@ router.post('/bayardaftar', proteksi,upload.single("bukti"), bayarDaftar);
 router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
 router.delete('/deletelog/:id_log', proteksi, deleteLog);
 
-router.get('/jurusan/:tahun?', jurusan);
-router.get('/detailjurusan/:id_jurusan?', jurusanDetail);
+router.get('/jurusan/:id_jurusan?', jurusan);
 router.post('/createjurusan',proteksi, createJurusan)
-router.put('/updatejurusan', proteksi,updateJurusan)
-router.delete('/deletejurusan',proteksi, deleteJurusan)
+router.put('/updatejurusan/:id_jurusan', proteksi,updateJurusan)
+router.delete('/deletejurusan/:id_jurusan',proteksi, deleteJurusan)
 
 router.get('/masterppdb/:id_ppdb?', masterPpdb);
 router.post('/createmaster', createMaster);
