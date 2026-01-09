@@ -298,6 +298,11 @@ const dataSiswa = async (req, res) => {
     }
         const siswa = await SiswaPpdb.findAll({
             include: [{
+                model: SiswaBaru, as: 'siswa_baru',
+                include: [{
+                    model: KelasPpdb, as: 'kelas_ppdb'
+                }]
+            },{
                 model: LogPpdb, as: 'log_ppdb'
             }],
             where: whereClause,
@@ -573,18 +578,24 @@ const bayarDaftar = async (req, res) => {
         if (cek < 1) {
             if (siswa.bayar_daftar === 'n') {
               const noInvoiceCreated = `P-${moment().format('DDMMYYYYHH')}-${id_siswa.substring(0, 3)}`;
-                    await LogPpdb.create({
-                        id_siswa,
-                        nominal,
-                        no_invoice: noInvoiceCreated,
-                        jenis: 'd',
-                        petugas: petugas,
-                        bukti,
-                        bayar
+                    const log = await LogPpdb.create({
+                      id_siswa,
+                      nominal,
+                      no_invoice: noInvoiceCreated,
+                      jenis: 'd',
+                      petugas,
+                      bukti,
+                      bayar
                     });
                     
                     await SiswaPpdb.update({ bayar_daftar: 'y' }, { where: { id_siswa } });
-                    return res.json({ message: 'Berhasil daftar!', status: 'ok' });
+                    return res.json({
+                        status: 'ok',
+                        message: 'Berhasil daftar!',
+                        id_log: log.id_log,
+                      });
+            } else {
+                return res.status(400).json({ error: 'Siswa sudah bayar daftar' });
             }
         } else {
             return res.status(400).json({ error: 'Tunggu beberapa saat!' });
@@ -783,37 +794,51 @@ const tampilKelas = async(req, res) => {
 
 
 const masterPpdb = async (req, res) => {
-  const { id_ppdb } = req.params; // ⬅️ query, bukan params
+  const { id_ppdb } = req.params
+  const { tahun } = req.query
 
   try {
-    let data;
+    let data
 
+    // 🔹 PRIORITAS 1: berdasarkan ID
     if (id_ppdb) {
-      // 🔹 Kalau ada tahun → ambil 1 data
       data = await MasterPpdb.findOne({
-        where: { id_ppdb },
-      });
-    } else {
-      // 🔹 Kalau tidak ada tahun → ambil semua
+        where: {
+          id_ppdb,
+          ...(tahun && { tahun })
+        }
+      })
+    }
+
+    // 🔹 PRIORITAS 2: berdasarkan tahun (1 tahun = 1 PPDB)
+    else if (tahun) {
+      data = await MasterPpdb.findOne({
+        where: { tahun }
+      })
+    }
+
+    // 🔹 PRIORITAS 3: ambil semua
+    else {
       data = await MasterPpdb.findAll({
-        order: [["tahun", "DESC"]],
-      });
+        order: [['tahun', 'DESC']]
+      })
     }
 
     return res.status(200).json({
-      status: "success",
-      message: "Data berhasil diambil",
-      data,
-    });
+      status: 'success',
+      message: 'Data berhasil diambil',
+      data
+    })
+
   } catch (error) {
-    console.error(error);
+    console.error(error)
     return res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil data.",
-      error: error.message,
-    });
+      status: 'error',
+      message: 'Gagal mengambil data.',
+      error: error.message
+    })
   }
-};
+}
 
 const createMaster = async(req, res) => {
   try {
