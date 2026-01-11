@@ -8,10 +8,10 @@ const { masterSppData, logLastSpp, bayarSpp, logSpp, detailLog, updateLog, delet
 const router = express.Router();
 
 router.get('/master/:tahun?', masterSppData);
-router.get('/detailmaster/:id_spp?', detailMaster);
-router.post('/createmaster', createMaster);
-router.put('/updatemaster/:id_spp', updateMaster);
-router.delete('/deletemaster/:id_spp', deleteMaster);
+router.get('/detailmaster/:id_spp?', proteksi, detailMaster);
+router.post('/createmaster', proteksi, createMaster);
+router.put('/updatemaster/:id_spp', proteksi, updateMaster);
+router.delete('/deletemaster/:id_spp', proteksi, deleteMaster);
 router.get('/loglast/:id_siswa', proteksi, logLastSpp);
 router.get('/log', proteksi, logSpp);
 router.get('/logdetail/:id_logspp', proteksi, detailLog)

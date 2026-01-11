@@ -1,4 +1,5 @@
 const express = require('express');
+const proteksi = require('../middleware/authMiddleware');
 const router = express.Router();
 const { isiAgenda, cekUsername, getMateri, prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList, updateJadwal, deleteJadwal, hitungAgenda, hariJadwal, hariAgenda } = require('../controllers/agendaController');
 // const authMiddleware = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT

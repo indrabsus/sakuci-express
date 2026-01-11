@@ -31,40 +31,40 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/siswa/:tahun/:status?', dataSiswa);
+router.get('/siswa/:tahun/:status?',proteksi, dataSiswa);
 router.put('/updatesiswa', proteksi, updateSiswa)
 router.put('/updatelog/:id_log', proteksi,upload.single("bukti"), updateLog)
 router.delete('/deletesiswa', proteksi, deleteSiswa)
 router.post('/undursiswa',proteksi, leaveSiswa)
 
-router.get('/tampilkelas', tampilKelas)
-router.post('/postkelas', postKelas)
-router.get('/log/:tahun', logPpdb);
-router.get('/logdetail/:id_log?', logPpdbDetail);
-router.get('/detailsiswa/:id_siswa/:tahun', detailSiswa);
+router.get('/tampilkelas',proteksi, tampilKelas)
+router.post('/postkelas',proteksi, postKelas)
+router.get('/log/:tahun',proteksi, logPpdb);
+router.get('/logdetail/:id_log?',proteksi, logPpdbDetail);
+router.get('/detailsiswa/:id_siswa/:tahun',proteksi, detailSiswa);
 router.post('/daftar', regisSiswa);
 
 router.post('/bayardaftar', proteksi,upload.single("bukti"), bayarDaftar);
 router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
 router.delete('/deletelog/:id_log', proteksi, deleteLog);
 
-router.get('/jurusan/:id_jurusan?', jurusan);
+router.get('/jurusan/:id_jurusan?',proteksi, jurusan);
 router.post('/createjurusan',proteksi, createJurusan)
 router.put('/updatejurusan/:id_jurusan', proteksi,updateJurusan)
 router.delete('/deletejurusan/:id_jurusan',proteksi, deleteJurusan)
 
-router.get('/masterppdb/:id_ppdb?', masterPpdb);
-router.post('/createmaster', createMaster);
-router.put('/updatemaster/:id_ppdb', updateMaster);
-router.delete('/deletemaster/:id_ppdb', deleteMaster);
+router.get('/masterppdb/:id_ppdb?',proteksi, masterPpdb);
+router.post('/createmaster',proteksi, createMaster);
+router.put('/updatemaster/:id_ppdb', proteksi,updateMaster);
+router.delete('/deletemaster/:id_ppdb',proteksi, deleteMaster);
 
 
-router.get('/kelas', kelas)
-router.get('/hitungsiswa/:id_kelas', hitungSiswa)
-router.get('/detailkelas/:id_kelas?', kelasDetail);
-router.post('/createkelas', createKelas)
+router.get('/kelas',proteksi, kelas)
+router.get('/hitungsiswa/:id_kelas',proteksi, hitungSiswa)
+router.get('/detailkelas/:id_kelas?',proteksi, kelasDetail);
+router.post('/createkelas',proteksi, createKelas)
 router.put('/updatekelas/:id_kelas', proteksi, updateKelas)
 router.delete('/deletekelas/:id_kelas', proteksi, deleteKelas)
 
-router.get('/siswakelas/:tahun?/:id_kelas?', siswaKelas)
+router.get('/siswakelas/:tahun?/:id_kelas?',proteksi, siswaKelas)
 module.exports = router;
