@@ -12,7 +12,7 @@ const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser,
 const router = express.Router();
 
 router.get('/siswa/:tingkat?/:id_kelas?',proteksi, dataSiswa);
-router.get('/user/:id_data?', proteksi, dataUser);
+router.get('/user/:id_data?', dataUser);
 router.get('/hitungabsen/:id_siswa/:id_data?/:id_mapel?/:bulan?/:tahun?', proteksi, hitungAbsen);
 router.get('/guru/', dataGuru); //jangan pake proteksi nanti ga bisa isi agenda
 router.get('/userfp/:uid_fp?',proteksi, dataUserFp);

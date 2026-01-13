@@ -1135,6 +1135,184 @@ const updateLog = async (req, res) => {
   }
 };
 
+const laporanPpdb = async (req, res) => {
+  try {
+    const { tahun } = req.params;
+
+    // ===============================
+    // MASTER PPDB
+    // ===============================
+    const daftar = await MasterPpdb.findOne({
+      where: { tahun }
+    });
+
+    if (!daftar) {
+      return res.status(404).json({ message: "Master PPDB tidak ditemukan" });
+    }
+
+    // ===============================
+    // TOTAL PENDAFTAR
+    // ===============================
+    const pendaftar = await SiswaPpdb.count({
+      where: { tahun }
+    });
+
+    // ===============================
+    // HANYA DAFTAR (d tapi belum pernah p)
+    // ===============================
+    const hanyadaftar = await LogPpdb.count({
+      where: {
+        jenis: "d",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun),
+          {
+            id_siswa: {
+              [Op.notIn]: literal(`(
+                SELECT id_siswa FROM log_ppdb WHERE jenis = 'p'
+              )`)
+            }
+          }
+        ]
+      },
+      distinct: true,
+      col: "id_siswa"
+    });
+
+    // ===============================
+    // MENGUNDURKAN DIRI
+    // ===============================
+    const mengundurkan = await SiswaPpdb.count({
+      where: {
+        bayar_daftar: "l",
+        tahun
+      }
+    });
+
+    // ===============================
+    // BELUM ADA AKSI
+    // ===============================
+    const noaction = await SiswaPpdb.count({
+      where: {
+        bayar_daftar: "n",
+        tahun
+      }
+    });
+
+    // ===============================
+    // SUDAH DAFTAR
+    // ===============================
+    const sudahdaftar = await SiswaPpdb.count({
+      where: {
+        bayar_daftar: "y",
+        tahun
+      }
+    });
+
+    // ===============================
+    // KURANG DARI 1 JUTA
+    // ===============================
+    const kurangsejuta = await LogPpdb.count({
+      where: {
+        jenis: "p",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      },
+      group: ["id_siswa"],
+      having: literal("SUM(nominal) < 1000000")
+    });
+
+    // ===============================
+    // LEBIH DARI 1 JUTA TAPI BELUM LUNAS
+    // ===============================
+    const lebihsejuta = await LogPpdb.count({
+      where: {
+        jenis: "p",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      },
+      group: ["id_siswa"],
+      having: literal(`
+        SUM(nominal) >= 1000000 
+        AND SUM(nominal) < ${daftar.ppdb}
+      `)
+    });
+
+    // ===============================
+    // LUNAS
+    // ===============================
+    const lunas = await LogPpdb.count({
+      where: {
+        jenis: "p",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      },
+      group: ["id_siswa"],
+      having: literal(`SUM(nominal) = ${daftar.ppdb}`)
+    });
+
+    // ===============================
+    // TOTAL UANG DAFTAR
+    // ===============================
+    const uangdaftar = await LogPpdb.sum("nominal", {
+      where: {
+        jenis: "d",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      }
+    });
+
+    // ===============================
+    // TOTAL UANG PPDB
+    // ===============================
+    const uangppdb = await LogPpdb.sum("nominal", {
+      where: {
+        jenis: "p",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      }
+    });
+
+    // ===============================
+    // TOTAL UANG MENGUNDURKAN DIRI
+    // ===============================
+    const uangundur = await LogPpdb.sum("nominal", {
+      where: {
+        jenis: "l",
+        [Op.and]: [
+          where(fn("YEAR", col("created_at")), tahun)
+        ]
+      }
+    });
+
+    // ===============================
+    // RESPONSE
+    // ===============================
+    return res.json({
+      // master: daftar,
+      pendaftar_total: pendaftar || 0,
+      sudah_daftar: sudahdaftar || 0,
+      hanya_daftar: hanyadaftar || 0,
+      kurang_sejuta: kurangsejuta.length || 0,
+      lebih_sejuta: lebihsejuta.length || 0,
+      lunas: lunas.length || 0,
+      mengundurkan: mengundurkan || 0,
+      belum_bayar: noaction || 0,
+      uang_daftar: uangdaftar || 0,
+      uang_ppdb: uangppdb || 0,
+      uang_undur: uangundur || 0
+    });
+
+  } catch (error) {
+    console.error("ERROR LAPORAN PPDB:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
 kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
-updateMaster, deleteMaster};
+updateMaster, deleteMaster, laporanPpdb};

@@ -8,7 +8,8 @@ createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKe
 updateLog,
 createMaster,
 updateMaster,
-deleteMaster
+deleteMaster,
+laporanPpdb
     
 } = require('../controllers/ppdbController');
 const router = express.Router();
@@ -47,6 +48,7 @@ router.post('/daftar', regisSiswa);
 router.post('/bayardaftar', proteksi,upload.single("bukti"), bayarDaftar);
 router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
 router.delete('/deletelog/:id_log', proteksi, deleteLog);
+router.get('/laporan/:tahun', laporanPpdb)
 
 router.get('/jurusan/:id_jurusan?',proteksi, jurusan);
 router.post('/createjurusan',proteksi, createJurusan)
