@@ -431,7 +431,7 @@ function generateAlias(nama_lengkap) {
           nomor: no_hpFormatted,
           pesan: `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
 
-Untuk tahap selanjutnya yaitu membayar Administrasi Pendaftaran Rp. 150.000, dapat hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi melalui panitia PPDB atau Transfer ke No Rek.
+Untuk tahap selanjutnya yaitu membayar Administrasi Pendaftaran, dapat hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi melalui panitia PPDB atau Transfer ke No Rek.
 BSI : 7207310063
 a.n Yayasan Pendidikan Dayang Sumbi Jaya Lestari.
 
@@ -444,7 +444,7 @@ Bu Minati : +62 878-2211-1349
 Terima Kasih 
 Panitia SPMB SMK Sangkuriang 1 Cimahi
 
-Note: Ini adalah whatsapp BOT, Jangan Balas Pesan ini! Terima Kasih`,
+Note: Jika no whatsapp tidak bisa diklik, silakan save dulu no ini!`,
         });
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
