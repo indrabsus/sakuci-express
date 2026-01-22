@@ -437,9 +437,10 @@ a.n Yayasan Pendidikan Dayang Sumbi Jaya Lestari.
 
 Mohon untuk konfirmasi ke salah satu nomor dibawah ini :
 Pak Dwi : +62 856-2457-8718
-Bu Ati : +62 822-9530-5320
+Bu Siti : +62 812-2444-1759
 Pa Anas : +62 812-5353-1933
-Bu Minati : +62 878-2211-1349
+Pa Dudi : +62 857-8155-0569
+Bu Dewi : +62 815-6201-885
 
 Terima Kasih 
 Panitia SPMB SMK Sangkuriang 1 Cimahi
