@@ -118,12 +118,12 @@ const createKelas = async(req, res) => {
 }
 
 const updateKelas = async (req, res) => {
-  const { nama_kelas, id_jurusan, max } = req.body;
+  const { nama_kelas, id_jurusan, max, tingkat } = req.body;
   const { id_kelas } = req.params;
 
   try {
     const [updated] = await KelasPpdb.update(
-      { nama_kelas, id_jurusan, max },
+      { nama_kelas, id_jurusan, max, tingkat },
       { where: { id_kelas } }
     );
 
