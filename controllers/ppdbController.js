@@ -372,6 +372,82 @@ function generateAlias(nama_lengkap) {
   return `${randomNum}${shortName}`;
 }
 
+const trfServer = async (req, res) => {
+  try {
+    const {
+      username,
+      nama_lengkap,
+      tempat_lahir,
+      tanggal_lahir,
+      jenkel,
+      agama,
+      alamat,
+      nisn,
+      nik_siswa,
+      nama_ayah,
+      nama_ibu,
+      asal_sekolah,
+      minat_jurusan1,
+      minat_jurusan2,
+      no_hp,
+      no_hp_ortu,
+      bayar_daftar,
+      tahun,
+      status
+    } = req.body
+
+    // 1️⃣ Cek username sudah ada atau belum
+    const existingUser = await SiswaPpdb.findOne({
+      where: { username }
+    })
+
+    if (existingUser) {
+      return res.status(400).json({
+        status: "error",
+        message: "Username sudah terdaftar"
+      })
+    }
+
+    // 2️⃣ Simpan data
+    const data = await SiswaPpdb.create({
+      username,
+      password: "$2y$10$T37wZbFAVv7.F2DQ5xf7CeHN4jW8anTqI3OnIR.tezKHjZGVRRvvm",
+      nama_lengkap,
+      tempat_lahir,
+      tanggal_lahir,
+      jenkel,
+      agama,
+      alamat,
+      nisn,
+      nik_siswa,
+      nama_ayah,
+      nama_ibu,
+      asal_sekolah,
+      minat_jurusan1,
+      minat_jurusan2,
+      no_hp,
+      no_hp_ortu,
+      bayar_daftar,
+      tahun, status
+    })
+
+    // 3️⃣ Response sukses
+    return res.status(201).json({
+      status: "success",
+      message: "Data siswa berhasil disimpan",
+      data
+    })
+
+  } catch (error) {
+    console.error("Error saat menyimpan data siswa:", error)
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal menyimpan data siswa",
+      error: error.message
+    })
+  }
+}
+
   const regisSiswa = async (req, res) => {
     try {
       const {
@@ -1317,4 +1393,4 @@ const laporanPpdb = async (req, res) => {
 
 module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
 kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
-updateMaster, deleteMaster, laporanPpdb};
+updateMaster, deleteMaster, laporanPpdb, trfServer};

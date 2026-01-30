@@ -9,7 +9,8 @@ updateLog,
 createMaster,
 updateMaster,
 deleteMaster,
-laporanPpdb
+laporanPpdb,
+trfServer
     
 } = require('../controllers/ppdbController');
 const router = express.Router();
@@ -44,6 +45,7 @@ router.get('/log/:tahun',proteksi, logPpdb);
 router.get('/logdetail/:id_log?',proteksi, logPpdbDetail);
 router.get('/detailsiswa/:id_siswa/:tahun',proteksi, detailSiswa);
 router.post('/daftar', regisSiswa);
+router.post('/trfserver', trfServer);
 
 router.post('/bayardaftar', proteksi,upload.single("bukti"), bayarDaftar);
 router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
