@@ -17,6 +17,7 @@ const sppRoutes = require('./routes/sppRoutes');
 const rfidRoutes = require('./routes/rfidRoutes');
 const presensiRoutes = require('./routes/presensiRoutes');
 const zkRoutes = require('./routes/zkRoutes');
+const tamuRoutes = require('./routes/tamuRoutes');
 const cors = require('cors');
 const path = require("path");
 
@@ -43,6 +44,7 @@ app.use('/spp', sppRoutes);
 app.use('/rfid', rfidRoutes);
 app.use('/presensi', presensiRoutes);
 app.use('/zk', zkRoutes);
+app.use('/tamu', tamuRoutes);
 
 
 // API Endpoint
