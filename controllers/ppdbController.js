@@ -208,18 +208,11 @@ const logPpdb = async (req, res) => {
       });
     }
 
-    const startDate = new Date(`${tahun}-01-01T00:00:00Z`);
-    const endDate = new Date(`${tahun}-12-31T23:59:59Z`);
-
     const siswa = await LogPpdb.findAll({
-      where: {
-        created_at: {
-          [Op.between]: [startDate, endDate]
-        }
-      },
       order: [['created_at', 'DESC']],
       include: [{
-        model: SiswaPpdb, as: 'siswa_ppdb'
+        model: SiswaPpdb, as: 'siswa_ppdb',
+        where: { tahun },
       }]
     });
 

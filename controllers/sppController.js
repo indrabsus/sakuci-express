@@ -1,4 +1,4 @@
-const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb } = require("../models"); // Pastikan path benar
+const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb, LogLuarSpp } = require("../models"); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where } = require("sequelize");
 const { axios, axiosInstance } = require("../config/axios");
 const fs = require("fs");
@@ -346,9 +346,130 @@ const deleteMaster = async (req, res) => {
     }
 };
 
+const logLainnya = async (req, res) => {
+  try {
+    const { id_logluar } = req.params;
+
+    // Kalau ada id_logluar → ambil satu data
+    if (id_logluar) {
+      const data = await LogLuarSpp.findOne({
+        where: { id_logluar: id_logluar },
+      });
+
+      if (!data) {
+        return res.status(404).json({
+          status: "error",
+          message: "Data tidak ditemukan.",
+        });
+      }
+
+      return res.status(200).json({
+        status: "success",
+        message: "Data berhasil diambil.",
+        data: data,
+      });
+    }
+
+    // Kalau tidak ada id → ambil semua
+    const data = await LogLuarSpp.findAll({
+      order: [["created_at", "DESC"]],
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diambil.",
+      data: data,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data.",
+      error: error.message,
+    });
+  }
+};
+
+const updateLoglainnya = async (req, res) => {
+  try {
+    const { id_logluar } = req.params;
+    const updateData = req.body;
+
+    const data = await LogLuarSpp.findByPk(id_logluar);
+
+    if (!data) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan.",
+      });
+    }
+
+    await data.update(updateData);
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error saat update data:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Gagal update data.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteLogLainnya = async (req, res) => {
+  try {
+    const { id_logluar } = req.params;
+
+    const data = await LogLuarSpp.findByPk(id_logluar);
+
+    if (!data) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan.",
+      });
+    }
+
+    await data.destroy();
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil dihapus.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal menghapus data.",
+      error: error.message,
+    });
+  }
+};
+
+const createLogLainnya = async (req, res) => {
+  try {
+    const createData = req.body;
+    const data = await LogLuarSpp.create(createData);
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil disimpan.",
+      data: data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal menyimpan data.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   masterSppData,
   logLastSpp,
   bayarSpp, logSpp, detailLog, updateLog, deleteLog,
-  createMaster, updateMaster, detailMaster, deleteMaster
+  createMaster, updateMaster, detailMaster, deleteMaster, logLainnya, updateLoglainnya, deleteLogLainnya, createLogLainnya
 };
