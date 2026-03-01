@@ -7,6 +7,7 @@ const axios = require("axios");
 const dataAgenda = async (req, res) => {
   try {
     const { id_agenda } = req.params;
+    const { id_data } = req.query;
 
     const queryOptions = {
       include: [
@@ -14,34 +15,53 @@ const dataAgenda = async (req, res) => {
         { model: MataPelajaran, as: "mapel" },
         { model: KelasPpdb, as: "kelas" }
       ],
-      order: [["created_at", "DESC"]]
+      order: [["created_at", "DESC"]],
     };
 
     let data;
 
+    // Kalau ambil satu agenda
     if (id_agenda) {
-      // ambil 1 data
+      const whereClause = { id_agenda };
+
+      // Tambahkan filter id_data jika ada
+      if (id_data) {
+        whereClause.id_data = id_data;
+      }
+
       data = await Agenda.findOne({
-        where: { id_agenda },
+        where: whereClause,
         ...queryOptions,
-        
       });
+
     } else {
-      // ambil semua data
-      data = await Agenda.findAll(queryOptions);
+
+      // Ambil semua
+      const whereClause = {};
+
+      if (id_data) {
+        whereClause.id_data = id_data;
+      }
+
+      data = await Agenda.findAll({
+        where: whereClause,
+        ...queryOptions,
+      });
     }
 
-    if (data) {
+    if (data && (Array.isArray(data) ? data.length > 0 : true)) {
       return res.status(200).json({
         status: "success",
-        message: id_agenda ? "Data agenda ditemukan" : "Semua data agenda berhasil diambil",
+        message: id_agenda
+          ? "Data agenda ditemukan"
+          : "Data agenda berhasil diambil",
         data,
       });
     }
 
     return res.status(404).json({
       status: "error",
-      message: id_agenda ? "Agenda tidak ditemukan" : "Belum ada data agenda",
+      message: "Data agenda tidak ditemukan",
     });
 
   } catch (error) {

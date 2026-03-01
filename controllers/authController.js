@@ -35,7 +35,10 @@ const authController = async (req, res) => {
   username: user.username,
   id_role: user.id_role,
   gambar: user.DataUser?.gambar || null, // ambil dari DataUser
+  id_data: user.DataUser?.id_data || ""
 };
+
+// console.log(payload);
 
 
       const token = jwt.sign(payload, process.env.JWT_SECRET, {
