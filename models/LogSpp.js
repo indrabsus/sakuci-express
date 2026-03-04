@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true
     },
     bayar: {
-      type: DataTypes.ENUM('trf', 'csh'),
+      type: DataTypes.ENUM('trf', 'csh', 'sbs'),
       allowNull: false,
     },
     bukti: {
