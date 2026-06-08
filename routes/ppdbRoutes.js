@@ -57,7 +57,7 @@ router.post('/createjurusan',proteksi, createJurusan)
 router.put('/updatejurusan/:id_jurusan', proteksi,updateJurusan)
 router.delete('/deletejurusan/:id_jurusan',proteksi, deleteJurusan)
 
-router.get('/masterppdb/:id_ppdb?',proteksi, masterPpdb);
+router.get('/masterppdb/:id_ppdb?',masterPpdb);
 router.post('/createmaster',proteksi, createMaster);
 router.put('/updatemaster/:id_ppdb', proteksi,updateMaster);
 router.delete('/deletemaster/:id_ppdb',proteksi, deleteMaster);

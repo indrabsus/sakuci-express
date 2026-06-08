@@ -7,7 +7,7 @@ router.delete('/deleteharian/:id_harian', proteksi,deleteHarian);
 router.get('/detailharian/:id_harian',proteksi, detailHarian);
 router.get('/presensiharian/:id_kelas?',proteksi, presensiHarian);
 router.get('/cekharian/:id_siswa', proteksi,cekHarian);
-router.get('/logrfid/:url?/:mesin?', proteksi,logRfid);
-router.get('/tarik/:ip/:mesin', proteksi,tarik);
+router.get('/logrfid/:url?/:mesin?', logRfid);
+router.get('/tarik/:ip/:mesin',tarik);
 
 module.exports = router;

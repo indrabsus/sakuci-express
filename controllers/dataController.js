@@ -171,38 +171,65 @@ const dataSiswa = async (req, res) => {
     const { tingkat, id_kelas } = req.params;
 
     const siswa = await SiswaPpdb.findAll({
+      limit: 100,
+      where: {
+          status: "aktif"
+      },
+
       include: [
         { model: LogPpdb, as: "log_ppdb" },
         { model: LogSpp, as: "log_spp" },
-        { model: AbsenHarianSiswa, as: "absen_harian_siswa"},
-        { model: AbsenSiswa, as: "absen_siswa"},
-        { model: Nilai, as: "nilai",
-          include: [{ model: Agenda, as: 'agenda' }]
+        { model: AbsenHarianSiswa, as: "absen_harian_siswa" },
+        { model: AbsenSiswa, as: "absen_siswa" },
+
+        {
+          model: Nilai,
+          as: "nilai",
+          include: [
+            {
+              model: Agenda,
+              as: "agenda",
+            },
+          ],
         },
+
         {
           model: SiswaBaru,
           as: "siswa_baru",
           required: true,
+
           include: [
             {
               model: KelasPpdb,
               as: "kelas_ppdb",
+
               ...(tingkat || id_kelas
-                ? { where: { ...(tingkat && { tingkat }), ...(id_kelas && { id_kelas }) } }
+                ? {
+                    where: {
+                      ...(tingkat && { tingkat }),
+                      ...(id_kelas && { id_kelas }),
+                    },
+                  }
                 : {}),
             },
           ],
         },
       ],
+
       order: [["nama_lengkap", "ASC"]],
     });
 
     res.status(200).json({
       status: "success",
-      message: `Data siswa berhasil diambil${tingkat ? ` untuk tingkat ${tingkat}` : ""}.`,
+      message: `Data siswa berhasil diambil${
+        tingkat ? ` untuk tingkat ${tingkat}` : ""
+      }.`,
+      total: siswa.length,
       data: siswa,
     });
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       status: "error",
       message: "Gagal mengambil data siswa.",
@@ -257,6 +284,30 @@ const dataGuru = async (req, res) => {
       data = await DataUser.findAll({
         include: [
           { model: User, as: "user", where: { id_role: 6 } }
+        ],
+        order: [["uid_fp", "ASC"]],
+      });
+
+    res.status(200).json({
+      status: "success",
+      message: "Data berhasil diambil!",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data.",
+      error: error.message,
+    });
+  }
+};
+
+const dataTendik = async (req, res) => {
+  try {
+    let data;
+      data = await DataUser.findAll({
+        include: [
+          { model: User, as: "user", where: { id_role: 7 } }
         ],
         order: [["uid_fp", "ASC"]],
       });
@@ -657,5 +708,5 @@ const deleteDokumen = async (req, res) => {
 
 module.exports = {
     detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
-    dataGuru, deleteSiswa, hitungAbsen, dokumenData, uploadData, updateDokumen, deleteDokumen
+    dataGuru, deleteSiswa, hitungAbsen, dokumenData, uploadData, updateDokumen, deleteDokumen, dataTendik
 }

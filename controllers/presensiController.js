@@ -248,19 +248,52 @@ const tarik = async (req, res) => {
 
     const url = `http://${ip}/${mesin}`;
 
-    // ambil data dari mesin
+    // 🔥 ambil data dari mesin
     const response = await fetch(url);
-    const rfidData = await response.json();
+    const text = await response.text();
 
-    if (!Array.isArray(rfidData)) {
+    console.log("RAW DATA:", text);
+
+    // 🔥 ambil semua object {...} (ANTI JSON RUSAK)
+    const matches = text.match(/{[^}]*}/g);
+
+    if (!matches) {
       return res.status(500).json({
-        message: "Format data dari mesin tidak valid"
+        message: "Tidak ada data valid dari mesin"
       });
     }
 
+    let rfidData = [];
+
+    for (let item of matches) {
+      try {
+        const cleanItem = item
+          .replace(/,\s*}/g, "}") // hapus koma sebelum }
+          .trim();
+
+        const obj = JSON.parse(cleanItem);
+
+        if (obj.uid && obj.timestamp) {
+          rfidData.push(obj);
+        }
+
+      } catch (err) {
+        console.log("SKIP DATA RUSAK:", item);
+      }
+    }
+
+    if (rfidData.length === 0) {
+      return res.status(500).json({
+        message: "Semua data dari mesin rusak"
+      });
+    }
+
+    // 🔁 proses data ke database
     for (let d of rfidData) {
       const uid = d.uid;
       const timestamp = new Date(d.timestamp);
+
+      if (isNaN(timestamp)) continue;
 
       // skip weekend
       const day = timestamp.getDay();
@@ -273,14 +306,14 @@ const tarik = async (req, res) => {
 
       if (!siswa) continue;
 
-      // buat range hari (00:00 - 23:59)
+      // range 1 hari
       const startDay = new Date(timestamp);
       startDay.setHours(0, 0, 0, 0);
 
       const endDay = new Date(timestamp);
       endDay.setHours(23, 59, 59, 999);
 
-      // cek apakah sudah ada absen di hari yang sama
+      // cek duplikat
       const sudahAda = await AbsenHarianSiswa.findOne({
         where: {
           id_siswa: siswa.id_siswa,
@@ -290,9 +323,9 @@ const tarik = async (req, res) => {
         }
       });
 
-      if (sudahAda) continue; // skip duplikat
+      if (sudahAda) continue;
 
-      // simpan absen
+      // simpan
       await AbsenHarianSiswa.create({
         id_siswa: siswa.id_siswa,
         status: "0",
@@ -300,11 +333,17 @@ const tarik = async (req, res) => {
       });
     }
 
+    // 🔥 clear data di mesin
     try {
       await fetch(`http://${ip}/clear/${mesin}`);
-    } catch {}
+    } catch (err) {
+      console.log("Gagal clear mesin:", err.message);
+    }
 
-    return res.json({ message: "Data berhasil ditarik" });
+    return res.json({
+      message: "Data berhasil ditarik",
+      total: rfidData.length
+    });
 
   } catch (err) {
     return res.status(500).json({

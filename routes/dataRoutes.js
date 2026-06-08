@@ -2,7 +2,7 @@ const express = require('express');
 const proteksi = require('../middleware/authMiddleware');
 const uploadDokumen = require('../middleware/uploadDokumen');
 const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, 
-    dataMapel, createUser, deleteUser, dataUserFp, 
+    dataMapel, createUser, deleteUser, dataUserFp, dataTendik,
     dataGuru,
     deleteSiswa,
     hitungAbsen,
@@ -11,10 +11,11 @@ const { detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser,
     deleteDokumen} = require('../controllers/dataController');
 const router = express.Router();
 
-router.get('/siswa/:tingkat?/:id_kelas?',proteksi, dataSiswa);
+router.get('/siswa/:tingkat?/:id_kelas?', dataSiswa);
 router.get('/user/:id_data?', dataUser);
 router.get('/hitungabsen/:id_siswa/:id_data?/:id_mapel?/:bulan?/:tahun?', proteksi, hitungAbsen);
 router.get('/guru/', dataGuru); //jangan pake proteksi nanti ga bisa isi agenda
+router.get('/tendik/', dataTendik);
 router.get('/userfp/:uid_fp?',proteksi, dataUserFp);
 router.post('/createuser',proteksi, createUser);
 router.get('/mapel',dataMapel); //jangan pake proteksi nanti ga bisa isi agenda

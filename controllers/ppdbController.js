@@ -514,8 +514,7 @@ Bu Dewi : +62 815-6201-885
 
 Terima Kasih 
 Panitia SPMB SMK Sangkuriang 1 Cimahi
-
-Note: Jika no whatsapp tidak bisa diklik, silakan save dulu no ini!`,
+`,
         });
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted} | Status : ${server_number}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);

@@ -1,4 +1,4 @@
-const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb, LogLuarSpp, LogPpdb } = require("../models"); // Pastikan path benar
+const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb, LogLuarSpp, LogPpdb, MasterPpdb } = require("../models"); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where } = require("sequelize");
 const { axios, axiosInstance } = require("../config/axios");
 const fs = require("fs");
@@ -185,27 +185,91 @@ const bayarSpp = async (req, res) => {
 
 const logSpp = async (req, res) => {
   try {
+    const { keyword, tingkat, page = 1, limit = 50 } = req.query;
 
-    const data = await LogSpp.findAll({
-      include: {
-          model: SiswaPpdb, as: "siswa_ppdb",
-          include: {
-              model: SiswaBaru, as: "siswa_baru",
-              include: {
-                  model: KelasPpdb, as: "kelas_ppdb"
-              }
-          }
-      },
-      order: [["created_at", "DESC"]], // urutkan dari terbaru
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const whereSiswa = {};
+
+    if (keyword) {
+      whereSiswa.nama_lengkap = {
+        [Op.like]: `%${keyword}%`,
+      };
+    }
+
+    const whereKelas = {};
+
+    if (tingkat && tingkat !== "semua") {
+      whereKelas.tingkat = Number(tingkat);
+    }
+
+    const pakaiFilterTingkat = Object.keys(whereKelas).length > 0;
+
+    const { rows, count } = await LogSpp.findAndCountAll({
+    attributes: [
+  "id_logspp",
+  "id_siswa",
+  "nominal",
+  "bulan",
+  "kelas",
+  "status",
+  "bayar",
+  "bukti",
+  "created_at",
+],
+
+      include: [
+        {
+          model: SiswaPpdb,
+          as: "siswa_ppdb",
+          attributes: ["id_siswa", "nama_lengkap"],
+
+          where: Object.keys(whereSiswa).length ? whereSiswa : undefined,
+          required: true,
+
+          include: [
+            {
+              model: SiswaBaru,
+              as: "siswa_baru",
+              attributes: ["id_siswa", "id_kelas"],
+
+              required: pakaiFilterTingkat,
+
+              include: [
+                {
+                  model: KelasPpdb,
+                  as: "kelas_ppdb",
+                  attributes: ["id_kelas", "tingkat", "nama_kelas"],
+
+                  where: pakaiFilterTingkat ? whereKelas : undefined,
+                  required: pakaiFilterTingkat,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+
+      order: [["created_at", "DESC"]],
+      limit: limitNumber,
+      offset,
+      distinct: true,
     });
 
     return res.status(200).json({
       status: "success",
       message: "Data berhasil diambil",
-      data,
+      total: count,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPage: Math.ceil(count / limitNumber),
+      data: rows,
     });
   } catch (error) {
     console.error(error);
+
     return res.status(500).json({
       status: "error",
       message: "Terjadi kesalahan",
@@ -589,9 +653,661 @@ const laporan = async (req, res) => {
   }
 };
 
+const dataSiswa = async (req, res) => {
+  const { tingkat, id_kelas, keyword } = req.query;
+
+  try {
+    const siswa = await SiswaPpdb.findAll({
+      attributes: [
+        "id_siswa",
+        "nama_lengkap",
+        "tahun",
+        "status",
+      ],
+
+      where: {
+        status: "aktif",
+
+        ...(keyword && {
+          nama_lengkap: {
+            [Op.like]: `%${keyword}%`,
+          },
+        }),
+      },
+
+      include: [
+        {
+          model: LogPpdb,
+          as: "log_ppdb",
+          attributes: [
+            "id_log",
+            "nominal",
+            "jenis",
+            "bayar",
+            "created_at",
+          ],
+          required: false,
+        },
+
+        {
+          model: LogSpp,
+          as: "log_spp",
+         attributes: [
+  "id_logspp",
+  "nominal",
+  "bulan",
+  "kelas",
+  "status",
+  "bayar",
+  "created_at",
+],
+          required: false,
+        },
+
+        {
+          model: SiswaBaru,
+          as: "siswa_baru",
+          required: true,
+
+          include: [
+            {
+              model: KelasPpdb,
+              as: "kelas_ppdb",
+              attributes: [
+                "id_kelas",
+                "tingkat",
+                "nama_kelas",
+              ],
+
+              ...(tingkat || id_kelas
+                ? {
+                    where: {
+                      ...(tingkat && { tingkat }),
+                      ...(id_kelas && { id_kelas }),
+                    },
+                  }
+                : {}),
+            },
+          ],
+        },
+      ],
+
+      order: [["nama_lengkap", "ASC"]],
+    });
+
+    const toNumber = (value) => {
+      if (!value) return 0;
+
+      return Number(
+        String(value)
+          .replace(/\./g, "")
+          .replace(/,/g, "")
+          .replace(/[^\d]/g, "")
+      ) || 0;
+    };
+
+    const data = siswa.map((item) => {
+      const json = item.toJSON();
+
+      const targetPpdb = 2800000;
+
+      const totalDaftar =
+        json.log_ppdb
+          ?.filter((log) => log.jenis === "d")
+          .reduce((total, log) => {
+            return total + toNumber(log.nominal);
+          }, 0) || 0;
+
+      const totalPpdb =
+        json.log_ppdb
+          ?.filter((log) => log.jenis === "p")
+          .reduce((total, log) => {
+            return total + toNumber(log.nominal);
+          }, 0) || 0;
+
+      const totalLainnya =
+        json.log_ppdb
+          ?.filter((log) => log.jenis === "l")
+          .reduce((total, log) => {
+            return total + toNumber(log.nominal);
+          }, 0) || 0;
+
+      return {
+        ...json,
+
+        target_ppdb: targetPpdb,
+
+        total_daftar_ppdb: totalDaftar,
+        total_bayar_ppdb: totalPpdb,
+        total_lainnya_ppdb: totalLainnya,
+
+        tunggakan_ppdb: Math.max(targetPpdb - totalPpdb, 0),
+      };
+    });
+
+    return res.status(200).json({
+      status: "success",
+      total: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data siswa.",
+      error: error.message,
+    });
+  }
+};
+
+const logPpdb = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      tahun,
+      keyword = "",
+      jenis,
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const whereLog = {};
+
+    if (jenis && jenis !== "semua") {
+      whereLog.jenis = jenis;
+    }
+
+    const whereSiswa = {};
+
+    if (tahun && tahun !== "semua") {
+      whereSiswa.tahun = Number(tahun);
+    }
+
+    if (keyword && keyword.trim() !== "") {
+      whereSiswa[Op.or] = [
+        {
+          nama_lengkap: {
+            [Op.like]: `%${keyword.trim()}%`,
+          },
+        },
+      ];
+    }
+
+    const { count, rows } = await LogPpdb.findAndCountAll({
+      where: whereLog,
+      limit: limitNumber,
+      offset,
+      order: [["created_at", "DESC"]],
+      include: [
+        {
+          model: SiswaPpdb,
+          as: "siswa_ppdb",
+          required: true,
+          where: whereSiswa,
+          attributes: ["id_siswa", "nama_lengkap", "tahun"],
+          include: [
+            {
+              model: SiswaBaru,
+              as: "siswa_baru",
+              required: false,
+              attributes: ["id_siswa", "id_kelas"],
+              include: [
+                {
+                  model: KelasPpdb,
+                  as: "kelas_ppdb",
+                  required: false,
+                  attributes: ["id_kelas", "tingkat", "nama_kelas"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data log PPDB berhasil diambil.",
+      total: count,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPage: Math.ceil(count / limitNumber),
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error logPpdb:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data log PPDB.",
+      error: error.message,
+    });
+  }
+};
+
+const deleteLogPpdb = async (req, res) => {
+  const { id_log } = req.params;
+  const { jenis, id_siswa } = req.body;
+
+  try {
+    // 🔹 ambil data log dulu
+    const log = await LogPpdb.findOne({ where: { id_log } });
+
+    if (!log) {
+      return res.status(404).json({ message: "Data tidak ditemukan" });
+    }
+
+    // 🔹 hapus file bukti kalau ada
+    if (log.bukti) {
+      const filePath = path.join(__dirname, "..", log.bukti);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // 🔹 update siswa kalau jenis daftar
+    if (jenis === "d") {
+      await SiswaPpdb.update(
+        { bayar_daftar: "n" },
+        { where: { id_siswa } }
+      );
+    }
+
+    // 🔹 hapus log
+    await LogPpdb.destroy({ where: { id_log } });
+
+    return res.json({ message: "Data & bukti berhasil dihapus" });
+  } catch (error) {
+    console.error("Error deleting log:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+    });
+  }
+};
+
+const isAdminKeuangan = (req) => {
+  return String(req.user?.username || "")
+    .toLowerCase()
+    .replace(/\s+/g, "") === "adminkeuangan";
+};
+
+const sendJsonBackup = (res, fileName, data) => {
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  return res.status(200).send(JSON.stringify(data, null, 2));
+};
+
+const arsipSummary = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun } = req.params;
+
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun },
+      attributes: ["id_siswa"],
+      raw: true,
+    });
+
+    const ids = siswa.map((item) => item.id_siswa);
+
+    const totalSiswa = ids.length;
+
+    const totalSiswaBaru =
+      ids.length > 0
+        ? await SiswaBaru.count({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+          })
+        : 0;
+
+    const totalLogSpp =
+      ids.length > 0
+        ? await LogSpp.count({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+          })
+        : 0;
+
+    const totalLogPpdb =
+      ids.length > 0
+        ? await LogPpdb.count({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+          })
+        : 0;
+
+    return res.status(200).json({
+      status: "success",
+      message: "Summary arsip berhasil diambil.",
+      data: {
+        tahun: Number(tahun),
+        total_siswa: totalSiswa,
+        total_siswa_baru: totalSiswaBaru,
+        total_log_spp: totalLogSpp,
+        total_log_ppdb: totalLogPpdb,
+      },
+    });
+  } catch (error) {
+    console.error("Error arsipSummary:", error);
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal mengambil summary arsip.",
+      error: error.message,
+    });
+  }
+};
+
+const backupArsipMaster = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const kelasPpdb = await KelasPpdb.findAll({ raw: true });
+    const masterSpp = await JsMasterSpp.findAll({ raw: true });
+    const masterPpdb = await MasterPpdb.findAll({ raw: true });
+
+    const data = {
+      app: "backup-master-keuangan",
+      version: 1,
+      created_at: new Date().toISOString(),
+      kelas_ppdb: kelasPpdb,
+      master_spp: masterSpp,
+      master_ppdb: masterPpdb,
+    };
+
+    return sendJsonBackup(
+      res,
+      `backup-master-keuangan-${Date.now()}.json`,
+      data
+    );
+  } catch (error) {
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal backup master.",
+      error: error.message,
+    });
+  }
+};
+
+const backupArsipSiswa = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun } = req.params;
+
+    const siswaPpdb = await SiswaPpdb.findAll({
+      where: { tahun },
+      raw: true,
+    });
+
+    const ids = siswaPpdb.map((item) => item.id_siswa);
+
+    const siswaBaru =
+      ids.length > 0
+        ? await SiswaBaru.findAll({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+            raw: true,
+          })
+        : [];
+
+    const data = {
+      app: "backup-siswa-angkatan",
+      version: 1,
+      created_at: new Date().toISOString(),
+      tahun: Number(tahun),
+      siswa_ppdb: siswaPpdb,
+      siswa_baru: siswaBaru,
+    };
+
+    return sendJsonBackup(
+      res,
+      `backup-siswa-angkatan-${tahun}-${Date.now()}.json`,
+      data
+    );
+  } catch (error) {
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal backup siswa.",
+      error: error.message,
+    });
+  }
+};
+
+const backupArsipLogSpp = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun } = req.params;
+
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun },
+      attributes: ["id_siswa"],
+      raw: true,
+    });
+
+    const ids = siswa.map((item) => item.id_siswa);
+
+    const logSpp =
+      ids.length > 0
+        ? await LogSpp.findAll({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+            raw: true,
+            order: [["created_at", "DESC"]],
+          })
+        : [];
+
+    const data = {
+      app: "backup-log-spp-angkatan",
+      version: 1,
+      created_at: new Date().toISOString(),
+      tahun: Number(tahun),
+      log_spp: logSpp,
+    };
+
+    return sendJsonBackup(
+      res,
+      `backup-log-spp-angkatan-${tahun}-${Date.now()}.json`,
+      data
+    );
+  } catch (error) {
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal backup log SPP.",
+      error: error.message,
+    });
+  }
+};
+
+const backupArsipLogPpdb = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun } = req.params;
+
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun },
+      attributes: ["id_siswa"],
+      raw: true,
+    });
+
+    const ids = siswa.map((item) => item.id_siswa);
+
+    const logPpdb =
+      ids.length > 0
+        ? await LogPpdb.findAll({
+            where: {
+              id_siswa: {
+                [Op.in]: ids,
+              },
+            },
+            raw: true,
+            order: [["created_at", "DESC"]],
+          })
+        : [];
+
+    const data = {
+      app: "backup-log-ppdb-angkatan",
+      version: 1,
+      created_at: new Date().toISOString(),
+      tahun: Number(tahun),
+      log_ppdb: logPpdb,
+    };
+
+    return sendJsonBackup(
+      res,
+      `backup-log-ppdb-angkatan-${tahun}-${Date.now()}.json`,
+      data
+    );
+  } catch (error) {
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal backup log PPDB.",
+      error: error.message,
+    });
+  }
+};
+
+const hapusArsipAngkatan = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun } = req.params;
+    const { konfirmasi } = req.body;
+
+    if (konfirmasi !== `HAPUS-${tahun}`) {
+      return res.status(400).json({
+        status: "gagal",
+        message: `Konfirmasi salah. Ketik HAPUS-${tahun}`,
+      });
+    }
+
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun },
+      attributes: ["id_siswa"],
+      raw: true,
+    });
+
+    const ids = siswa.map((item) => item.id_siswa);
+
+    if (ids.length === 0) {
+      return res.status(404).json({
+        status: "gagal",
+        message: "Tidak ada siswa untuk tahun masuk ini.",
+      });
+    }
+
+    const deletedLogSpp = await LogSpp.destroy({
+      where: {
+        id_siswa: {
+          [Op.in]: ids,
+        },
+      },
+    });
+
+    const deletedLogPpdb = await LogPpdb.destroy({
+      where: {
+        id_siswa: {
+          [Op.in]: ids,
+        },
+      },
+    });
+
+    const deletedSiswaBaru = await SiswaBaru.destroy({
+      where: {
+        id_siswa: {
+          [Op.in]: ids,
+        },
+      },
+    });
+
+    const deletedSiswa = await SiswaPpdb.destroy({
+      where: { tahun },
+    });
+
+    return res.status(200).json({
+      status: "sukses",
+      message: "Data angkatan berhasil dihapus.",
+      data: {
+        tahun: Number(tahun),
+        deleted_log_spp: deletedLogSpp,
+        deleted_log_ppdb: deletedLogPpdb,
+        deleted_siswa_baru: deletedSiswaBaru,
+        deleted_siswa: deletedSiswa,
+      },
+    });
+  } catch (error) {
+    console.error("Error hapusArsipAngkatan:", error);
+
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal menghapus data angkatan.",
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
-  masterSppData,
+  masterSppData, dataSiswa, deleteLogPpdb,  arsipSummary,
+backupArsipMaster,
+backupArsipSiswa,
+backupArsipLogSpp,
+backupArsipLogPpdb,
+hapusArsipAngkatan,
   logLastSpp,
   bayarSpp, logSpp, detailLog, updateLog, deleteLog,
-  createMaster, updateMaster, detailMaster, deleteMaster, logLainnya, updateLoglainnya, deleteLogLainnya, createLogLainnya, laporan
+  createMaster, updateMaster, detailMaster, deleteMaster, logLainnya, updateLoglainnya, deleteLogLainnya, createLogLainnya, laporan, logPpdb
 };
