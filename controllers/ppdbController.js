@@ -501,16 +501,7 @@ const trfServer = async (req, res) => {
           nomor: no_hpFormatted,
           pesan: `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
 
-Untuk tahap selanjutnya yaitu membayar Administrasi Pendaftaran Rp.200.000, dapat hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi melalui panitia PPDB atau Transfer ke No Rek.
-BSI : 7207310063
-a.n Yayasan Pendidikan Dayang Sumbi Jaya Lestari.
-
-Mohon untuk konfirmasi ke salah satu nomor dibawah ini :
-Pak Dwi : +62 856-2457-8718
-Bu Siti : +62 812-2444-1759
-Pa Anas : +62 812-5353-1933
-Pa Dudi : +62 857-8155-0569
-Bu Dewi : +62 815-6201-885
+    Untuk tahap selanjutnya dipersilahkan untuk hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi untuk melakukan registrasi secara langsung dan menyelesaikan seluruh pembiayaan SPMB. Dikarenakan saat ini kuota yang tersedia semakin menipis imbas dari banyaknya pendaftar yang hadir setelah pengumuman penerimaan  Sekolah Negeri.
 
 Terima Kasih 
 Panitia SPMB SMK Sangkuriang 1 Cimahi
@@ -1165,7 +1156,9 @@ const updateLog = async (req, res) => {
   try {
     const { id_log } = req.params;
 
-    const data = await LogPpdb.findOne({ where: { id_log } });
+    const data = await LogPpdb.findOne({
+      where: { id_log },
+    });
 
     if (!data) {
       return res.status(404).json({
@@ -1180,24 +1173,36 @@ const updateLog = async (req, res) => {
       bayar: req.body.bayar,
       petugas: req.body.petugas,
       created_at: req.body.created_at,
+      jenis: req.body.jenis,
     };
 
-    // kalau upload bukti ada
     if (req.file) {
       updateData.bukti = `/uploads/bukti/${req.file.filename}`;
     }
 
-    await data.update(updateData);
-
-    res.status(200).json({
-      status: "success",
-      message: "Data berhasil diperbarui.",
-      data,
+    await LogPpdb.update(updateData, {
+      where: { id_log },
     });
 
+    const updatedData = await LogPpdb.findOne({
+      where: { id_log },
+      include: [
+        {
+          model: SiswaPpdb,
+          as: "siswa_ppdb",
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data berhasil diperbarui.",
+      data: updatedData,
+    });
   } catch (error) {
     console.error("Error saat update data:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
       status: "error",
       message: "Gagal update data.",
       error: error.message,
@@ -1383,6 +1388,272 @@ const laporanPpdb = async (req, res) => {
   }
 };
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa,
+const deleteKelasSiswa = async (req, res) => {
+  try {
+    const { id_siswa } = req.params;
+
+    if (!id_siswa) {
+      return res.status(400).json({
+        status: "error",
+        message: "id_siswa wajib dikirim.",
+      });
+    }
+
+    const deleted = await SiswaBaru.destroy({
+      where: {
+        id_siswa,
+      },
+    });
+
+    if (deleted === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "Siswa tidak ditemukan di kelas.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Siswa berhasil dihapus dari kelas.",
+      deletedRows: deleted,
+    });
+  } catch (error) {
+    console.error("Error deleteKelasSiswa:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal menghapus siswa dari kelas.",
+      error: error.message,
+    });
+  }
+};
+
+
+const backupJson = async (req, res) => {
+  try {
+    const { tahun } = req.params;
+
+    if (!tahun) {
+      return res.status(400).json({
+        status: "error",
+        message: "Tahun wajib diisi.",
+      });
+    }
+
+    // 1. master_ppdb sesuai tahun
+    const master = await MasterPpdb.findAll({
+      where: { tahun },
+      raw: true,
+    });
+
+    const idPpdb = master.map((item) => item.id_ppdb);
+
+    // 2. jurusan_ppdb sesuai id_ppdb
+    const jurusan = await JurusanPpdb.findAll({
+      where: {
+        id_ppdb: idPpdb,
+      },
+      raw: true,
+    });
+
+    const idJurusan = jurusan.map((item) => item.id_jurusan);
+
+    // 3. kelas_ppdb sesuai id_jurusan
+    const kelas = await KelasPpdb.findAll({
+      where: {
+        id_jurusan: idJurusan,
+      },
+      raw: true,
+    });
+
+    const idKelas = kelas.map((item) => item.id_kelas);
+
+    // 4. siswa_ppdb sesuai tahun
+    const siswa = await SiswaPpdb.findAll({
+      where: { tahun },
+      raw: true,
+    });
+
+    const idSiswa = siswa.map((item) => item.id_siswa);
+
+    // 5. siswa_baru nyambung ke kelas_ppdb dan siswa_ppdb
+    const siswaBaru = await SiswaBaru.findAll({
+      where: {
+        id_siswa: idSiswa,
+        id_kelas: idKelas,
+      },
+      raw: true,
+    });
+
+    // 6. log_ppdb sesuai siswa tahun tersebut
+    const log = await LogPpdb.findAll({
+      where: {
+        id_siswa: idSiswa,
+      },
+      raw: true,
+    });
+
+    const data = {
+      version: 1,
+      tahun: Number(tahun),
+      backup_at: new Date(),
+
+      master_ppdb: master,
+      jurusan_ppdb: jurusan,
+      kelas_ppdb: kelas,
+      siswa_ppdb: siswa,
+      siswa_baru: siswaBaru,
+      log_ppdb: log,
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=backup-ppdb-${tahun}.json`
+    );
+
+    return res.send(JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error("ERROR BACKUP JSON:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Backup gagal.",
+      error: error.message,
+    });
+  }
+};
+
+const restoreJson = async (req, res) => {
+  try {
+    const backup = req.body;
+    const tahun = backup.tahun;
+
+    if (!tahun) {
+      return res.status(400).json({
+        status: "error",
+        message: "File backup tidak valid. Tahun tidak ditemukan.",
+      });
+    }
+
+    const restoreTable = async (Model, rows, primaryKey) => {
+      let inserted = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { inserted, skipped, failed };
+      }
+
+      for (const row of rows) {
+        try {
+          const id = row[primaryKey];
+
+          if (!id) {
+            failed++;
+            continue;
+          }
+
+          const exists = await Model.findOne({
+            where: {
+              [primaryKey]: id,
+            },
+          });
+
+          if (exists) {
+            skipped++;
+            continue;
+          }
+
+          await Model.create(row);
+          inserted++;
+        } catch (error) {
+          failed++;
+          console.error(`Restore gagal di ${primaryKey}:`, error.message);
+        }
+      }
+
+      return { inserted, skipped, failed };
+    };
+
+    // urutan insert harus dari induk ke anak
+    const result = {
+      master_ppdb: await restoreTable(
+        MasterPpdb,
+        backup.master_ppdb,
+        "id_ppdb"
+      ),
+
+      jurusan_ppdb: await restoreTable(
+        JurusanPpdb,
+        backup.jurusan_ppdb,
+        "id_jurusan"
+      ),
+
+      kelas_ppdb: await restoreTable(
+        KelasPpdb,
+        backup.kelas_ppdb,
+        "id_kelas"
+      ),
+
+      siswa_ppdb: await restoreTable(
+        SiswaPpdb,
+        backup.siswa_ppdb,
+        "id_siswa"
+      ),
+
+      siswa_baru: await restoreTable(
+        SiswaBaru,
+        backup.siswa_baru,
+        "id_siswa_baru"
+      ),
+
+      log_ppdb: await restoreTable(
+        LogPpdb,
+        backup.log_ppdb,
+        "id_log"
+      ),
+    };
+
+    const totalInserted = Object.values(result).reduce(
+      (sum, item) => sum + item.inserted,
+      0
+    );
+
+    const totalSkipped = Object.values(result).reduce(
+      (sum, item) => sum + item.skipped,
+      0
+    );
+
+    const totalFailed = Object.values(result).reduce(
+      (sum, item) => sum + item.failed,
+      0
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: `Restore selesai. Masuk ${totalInserted}, skip ${totalSkipped}, gagal ${totalFailed}.`,
+      tahun,
+      summary: result,
+      total: {
+        inserted: totalInserted,
+        skipped: totalSkipped,
+        failed: totalFailed,
+      },
+    });
+  } catch (error) {
+    console.error("ERROR RESTORE JSON:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Restore gagal.",
+      error: error.message,
+    });
+  }
+};
+
+
+
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
 kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
-updateMaster, deleteMaster, laporanPpdb, trfServer};
+updateMaster, deleteMaster, laporanPpdb, trfServer, backupJson, restoreJson};

@@ -1,29 +1,68 @@
-const express = require('express');
-const proteksi = require('../middleware/authMiddleware');
+const express = require("express");
+const proteksi = require("../middleware/authMiddleware");
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
-const { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, updateKelas, deleteKelas, hitungSiswa, siswaKelas, deleteSiswa, leaveSiswa, updateSiswa,
-createJurusan, masterPpdb, jurusanDetail, updateJurusan, deleteJurusan, createKelas, kelasDetail, logPpdbDetail,
-updateLog,
-createMaster,
-updateMaster,
-deleteMaster,
-laporanPpdb,
-trfServer
-    
-} = require('../controllers/ppdbController');
+const fs = require("fs");
+
+const {
+  dataSiswa,
+  regisSiswa,
+  jurusan,
+  bayarDaftar,
+  deleteLog,
+  detailSiswa,
+  bayarPpdb,
+  logPpdb,
+  kelas,
+  postKelas,
+  tampilKelas,
+  updateKelas,
+  deleteKelas,
+  hitungSiswa,
+  siswaKelas,
+  deleteSiswa,
+  leaveSiswa,
+  updateSiswa,
+  createJurusan,
+  masterPpdb,
+  jurusanDetail,
+  updateJurusan,
+  deleteJurusan,
+  createKelas,
+  kelasDetail,
+  logPpdbDetail,
+  deleteKelasSiswa,
+  updateLog,
+  createMaster,
+  updateMaster,
+  deleteMaster,
+  laporanPpdb,
+  trfServer,
+  backupJson,
+  restoreJson
+} = require("../controllers/ppdbController");
+
 const router = express.Router();
+
+/* =========================
+   UPLOAD BUKTI PEMBAYARAN
+========================= */
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/bukti/");
+    const dir = "uploads/bukti/";
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    cb(null, dir);
   },
+
   filename: (req, file, cb) => {
-    // ambil ekstensi file asli
     const ext = path.extname(file.originalname);
 
-    // buat nama file unik pakai random hex + timestamp
     const uniqueName =
       crypto.randomBytes(16).toString("hex") + "-" + Date.now() + ext;
 
@@ -33,42 +72,95 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/siswa/:tahun/:status?',proteksi, dataSiswa);
-router.put('/updatesiswa', proteksi, updateSiswa)
-router.put('/updatelog/:id_log', proteksi,upload.single("bukti"), updateLog)
-router.delete('/deletesiswa', proteksi, deleteSiswa)
-router.post('/undursiswa',proteksi, leaveSiswa)
-
-router.get('/tampilkelas',proteksi, tampilKelas)
-router.post('/postkelas',proteksi, postKelas)
-router.get('/log/:tahun',proteksi, logPpdb);
-router.get('/logdetail/:id_log?',proteksi, logPpdbDetail);
-router.get('/detailsiswa/:id_siswa/:tahun',proteksi, detailSiswa);
-router.post('/daftar', regisSiswa);
-router.post('/trfserver', trfServer);
-
-router.post('/bayardaftar', proteksi,upload.single("bukti"), bayarDaftar);
-router.post('/bayarppdb', proteksi, upload.single("bukti"), bayarPpdb);
-router.delete('/deletelog/:id_log', proteksi, deleteLog);
-router.get('/laporan/:tahun', laporanPpdb)
-
-router.get('/jurusan/:id_jurusan?',proteksi, jurusan);
-router.post('/createjurusan',proteksi, createJurusan)
-router.put('/updatejurusan/:id_jurusan', proteksi,updateJurusan)
-router.delete('/deletejurusan/:id_jurusan',proteksi, deleteJurusan)
-
-router.get('/masterppdb/:id_ppdb?',masterPpdb);
-router.post('/createmaster',proteksi, createMaster);
-router.put('/updatemaster/:id_ppdb', proteksi,updateMaster);
-router.delete('/deletemaster/:id_ppdb',proteksi, deleteMaster);
 
 
-router.get('/kelas',proteksi, kelas)
-router.get('/hitungsiswa/:id_kelas',proteksi, hitungSiswa)
-router.get('/detailkelas/:id_kelas?',proteksi, kelasDetail);
-router.post('/createkelas',proteksi, createKelas)
-router.put('/updatekelas/:id_kelas', proteksi, updateKelas)
-router.delete('/deletekelas/:id_kelas', proteksi, deleteKelas)
+/* =========================
+   SISWA
+========================= */
 
-router.get('/siswakelas/:tahun?/:id_kelas?',proteksi, siswaKelas)
+router.get("/siswa/:tahun/:status?", proteksi, dataSiswa);
+router.get("/detailsiswa/:id_siswa/:tahun", proteksi, detailSiswa);
+router.put("/updatesiswa", proteksi, updateSiswa);
+router.delete("/deletesiswa", proteksi, deleteSiswa);
+router.post("/undursiswa", proteksi, leaveSiswa);
+
+/* =========================
+   PENDAFTARAN PUBLIC
+========================= */
+
+router.post("/daftar", regisSiswa);
+router.post("/trfserver", trfServer);
+
+/* =========================
+   PEMBAYARAN
+========================= */
+
+router.post("/bayardaftar", proteksi, upload.single("bukti"), bayarDaftar);
+router.post("/bayarppdb", proteksi, upload.single("bukti"), bayarPpdb);
+
+/* =========================
+   LOG PPDB
+========================= */
+
+router.get("/log/:tahun", proteksi, logPpdb);
+router.get("/logdetail/:id_log?", proteksi, logPpdbDetail);
+router.put("/updatelog/:id_log", proteksi, upload.single("bukti"), updateLog);
+router.delete("/deletelog/:id_log", proteksi, deleteLog);
+
+/* =========================
+   LAPORAN
+========================= */
+
+router.get("/laporan/:tahun", laporanPpdb);
+
+/* =========================
+   JURUSAN
+========================= */
+
+router.get("/jurusan/:id_jurusan?", proteksi, jurusan);
+router.post("/createjurusan", proteksi, createJurusan);
+router.put("/updatejurusan/:id_jurusan", proteksi, updateJurusan);
+router.delete("/deletejurusan/:id_jurusan", proteksi, deleteJurusan);
+
+/* =========================
+   MASTER PPDB
+========================= */
+
+router.get("/masterppdb/:id_ppdb?", masterPpdb);
+router.post("/createmaster", proteksi, createMaster);
+router.put("/updatemaster/:id_ppdb", proteksi, updateMaster);
+router.delete("/deletemaster/:id_ppdb", proteksi, deleteMaster);
+
+/* =========================
+   KELAS
+========================= */
+
+router.get("/kelas", proteksi, kelas);
+router.get("/hitungsiswa/:id_kelas", proteksi, hitungSiswa);
+router.get("/detailkelas/:id_kelas?", proteksi, kelasDetail);
+router.post("/createkelas", proteksi, createKelas);
+router.put("/updatekelas/:id_kelas", proteksi, updateKelas);
+router.delete("/deletekelas/:id_kelas", proteksi, deleteKelas);
+
+router.get("/tampilkelas", proteksi, tampilKelas);
+router.post("/postkelas", proteksi, postKelas);
+router.delete("/deletekelassiswa/:id_siswa", proteksi, deleteKelasSiswa);
+router.get("/siswakelas/:tahun?/:id_kelas?", proteksi, siswaKelas);
+
+router.get(
+  "/backup/:tahun",
+  proteksi,
+  backupJson
+);
+
+router.post(
+  "/restore",
+  proteksi,
+  restoreJson
+);
+
+
+
+
+
 module.exports = router;
