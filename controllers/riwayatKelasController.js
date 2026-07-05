@@ -93,7 +93,14 @@ const kelasTerkini = async (req, res) => {
 };
 
 const riwayatByTahun = async (req, res) => {
-  const { tahun_ajaran } = req.params;
+  const { tahun_ajaran } = req.query;
+
+  if (!tahun_ajaran) {
+    return res.status(400).json({
+      status: "error",
+      message: "Parameter tahun_ajaran wajib diisi.",
+    });
+  }
 
   try {
     const data = await RiwayatKelas.findAll({

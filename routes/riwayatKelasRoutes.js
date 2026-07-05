@@ -17,7 +17,7 @@ router.get('/tahun-aktif', proteksi, tahunAjaranAktif);
 router.get('/tahun-list', proteksi, daftarTahunAjaran);
 router.get('/siswa/:id_siswa', proteksi, riwayatSiswa);
 router.get('/terkini/:id_siswa', proteksi, kelasTerkini);
-router.get('/tahun/:tahun_ajaran', proteksi, riwayatByTahun);
+router.get('/tahun', proteksi, riwayatByTahun);
 router.post('/', proteksi, createRiwayat);
 router.post('/naik-kelas', proteksi, naikKelas);
 router.delete('/:id_riwayat', proteksi, deleteRiwayat);
