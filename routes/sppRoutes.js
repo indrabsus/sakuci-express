@@ -32,6 +32,9 @@ const {
   backupArsipLogSpp,
   backupArsipLogPpdb,
   hapusArsipAngkatan,
+  arsipTahunAjaranSummary,
+  backupArsipTahunAjaran,
+  restoreArsipTahunAjaran,
 } = require("../controllers/sppController");
 
 const router = express.Router();
@@ -146,6 +149,18 @@ router.get("/arsip/backup-siswa/:tahun", proteksi, backupArsipSiswa);
 router.get("/arsip/backup-log-spp/:tahun", proteksi, backupArsipLogSpp);
 router.get("/arsip/backup-log-ppdb/:tahun", proteksi, backupArsipLogPpdb);
 router.delete("/arsip/hapus-angkatan/:tahun", proteksi, hapusArsipAngkatan);
+
+router.get(
+  "/arsip/summary-ta/:tahun_ajaran",
+  proteksi,
+  arsipTahunAjaranSummary
+);
+router.get(
+  "/arsip/backup-ta/:tahun_ajaran",
+  proteksi,
+  backupArsipTahunAjaran
+);
+router.post("/arsip/restore-ta", proteksi, restoreArsipTahunAjaran);
 
 
 

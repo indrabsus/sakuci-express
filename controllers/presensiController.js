@@ -1,5 +1,5 @@
 // controllers/rfidController.js
-const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb } = require('../models');
+const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, Absen, User, DataUser } = require('../models');
 const { Op } = require('sequelize');
 const dayjs = require('dayjs');
 
@@ -353,4 +353,41 @@ const tarik = async (req, res) => {
   }
 };
 
-module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid, tarik };
+const absenGuru = async (req, res) => {
+  try {
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    const data = await Absen.findAndCountAll({
+      limit,
+      offset,
+      include: [
+        {
+          model: User,
+          as: 'users',
+          where: { id_role: 6 },
+          include: [{ model: DataUser }]
+        }
+      ],
+      order: [['waktu', 'DESC']]
+    });
+
+    return res.json({
+      total: data.count,
+      page,
+      totalPage: Math.ceil(data.count / limit),
+      data: data.rows
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: 'Terjadi kesalahan server',
+      error: error.message
+    });
+  }
+};
+
+module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid, tarik, absenGuru };

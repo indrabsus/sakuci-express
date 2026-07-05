@@ -8,12 +8,12 @@ module.exports = (sequelize, DataTypes) => {
     id_user: {
       type: DataTypes.UUID,
       allowNull: false,
-      references: {
-        model: 'users', // Referensikan nama tabel secara langsung
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
+      // references: {
+      //   model: 'users', // Referensikan nama tabel secara langsung
+      //   key: 'id',
+      // },
+      // onUpdate: 'CASCADE',
+      // onDelete: 'CASCADE',
     },
     nama_lengkap: {
       type: DataTypes.STRING,

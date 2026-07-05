@@ -133,6 +133,7 @@ module.exports = (sequelize, DataTypes) => {
     SiswaPpdb.hasMany(models.AbsenSiswa, { foreignKey: 'id_siswa', as: 'absen_siswa' });
     SiswaPpdb.hasMany(models.Nilai, { foreignKey: 'id_siswa', as: 'nilai' });
     SiswaPpdb.hasOne(models.SiswaBaru, { foreignKey: 'id_siswa', as: 'siswa_baru' });
+    SiswaPpdb.hasMany(models.RiwayatKelas, { foreignKey: 'id_siswa', as: 'riwayat_kelas' });
   };
 
   return SiswaPpdb;

@@ -1,4 +1,4 @@
-const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb, LogLuarSpp, LogPpdb, MasterPpdb } = require("../models"); // Pastikan path benar
+const { JsMasterSpp, LogSpp, SiswaPpdb, SiswaBaru, KelasPpdb, LogLuarSpp, LogPpdb, MasterPpdb, RiwayatKelas } = require("../models"); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where } = require("sequelize");
 const { axios, axiosInstance } = require("../config/axios");
 const fs = require("fs");
@@ -185,7 +185,7 @@ const bayarSpp = async (req, res) => {
 
 const logSpp = async (req, res) => {
   try {
-    const { keyword, tingkat, page = 1, limit = 50 } = req.query;
+    const { keyword, tingkat, tahun_ajaran, page = 1, limit = 50 } = req.query;
 
     const pageNumber = Number(page);
     const limitNumber = Number(limit);
@@ -199,13 +199,29 @@ const logSpp = async (req, res) => {
       };
     }
 
-    const whereKelas = {};
+    const pakaiFilterTingkat = !!(tingkat && tingkat !== "semua");
 
-    if (tingkat && tingkat !== "semua") {
-      whereKelas.tingkat = Number(tingkat);
+    // Tetap butuh tahun_ajaran yang jelas biar riwayat_kelas yang di-join cuma
+    // satu baris per siswa (bukan sekalian semua tahun) - kalau tidak dikirim,
+    // pakai tahun ajaran aktif (terbaru).
+    let tahunAjaranTerpakai = tahun_ajaran;
+
+    if (!tahunAjaranTerpakai) {
+      const latest = await RiwayatKelas.findOne({
+        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
+        raw: true,
+      });
+
+      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
     }
 
-    const pakaiFilterTingkat = Object.keys(whereKelas).length > 0;
+    const whereRiwayat = tahunAjaranTerpakai
+      ? { tahun_ajaran: tahunAjaranTerpakai }
+      : undefined;
+
+    if (whereRiwayat && pakaiFilterTingkat) {
+      whereRiwayat.tingkat = String(tingkat);
+    }
 
     const { rows, count } = await LogSpp.findAndCountAll({
     attributes: [
@@ -231,22 +247,15 @@ const logSpp = async (req, res) => {
 
           include: [
             {
-              model: SiswaBaru,
-              as: "siswa_baru",
-              attributes: ["id_siswa", "id_kelas"],
+              // required: true (INNER JOIN) cuma dipaksa kalau lagi filter
+              // tingkat - kalau tidak, tetap LEFT JOIN biar log lama yang
+              // siswanya belum punya riwayat_kelas tetap muncul.
+              model: RiwayatKelas,
+              as: "riwayat_kelas",
+              attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
 
+              where: whereRiwayat,
               required: pakaiFilterTingkat,
-
-              include: [
-                {
-                  model: KelasPpdb,
-                  as: "kelas_ppdb",
-                  attributes: ["id_kelas", "tingkat", "nama_kelas"],
-
-                  where: pakaiFilterTingkat ? whereKelas : undefined,
-                  required: pakaiFilterTingkat,
-                },
-              ],
             },
           ],
         },
@@ -265,7 +274,24 @@ const logSpp = async (req, res) => {
       page: pageNumber,
       limit: limitNumber,
       totalPage: Math.ceil(count / limitNumber),
-      data: rows,
+      data: rows.map((item) => {
+        const json = item.toJSON();
+        const riwayat = json.siswa_ppdb?.riwayat_kelas?.[0] || null;
+
+        return {
+          ...json,
+          siswa_ppdb: {
+            ...json.siswa_ppdb,
+            kelas_terkini: riwayat
+              ? {
+                  tingkat: riwayat.tingkat,
+                  nama_kelas: riwayat.nama_kelas,
+                  tahun_ajaran: riwayat.tahun_ajaran,
+                }
+              : null,
+          },
+        };
+      }),
     });
   } catch (error) {
     console.error(error);
@@ -654,9 +680,50 @@ const laporan = async (req, res) => {
 };
 
 const dataSiswa = async (req, res) => {
-  const { tingkat, id_kelas, keyword } = req.query;
+  const { tingkat, id_kelas, keyword, tahun_ajaran } = req.query;
 
   try {
+    // Kalau filter id_kelas dipakai, cari dulu tingkat & nama_kelas kelas itu -
+    // riwayat_kelas cuma nyimpen nama_kelas (snapshot), bukan id_kelas.
+    let kelasFilter = null;
+
+    if (id_kelas) {
+      kelasFilter = await KelasPpdb.findOne({
+        where: { id_kelas },
+        attributes: ["tingkat", "nama_kelas"],
+      });
+    }
+
+    // Kalau tahun_ajaran tidak dikirim, pakai tahun ajaran aktif (terbaru)
+    // yang ada di riwayat_kelas.
+    let tahunAjaranTerpakai = tahun_ajaran;
+
+    if (!tahunAjaranTerpakai) {
+      const latest = await RiwayatKelas.findOne({
+        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
+        raw: true,
+      });
+
+      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
+    }
+
+    if (!tahunAjaranTerpakai) {
+      return res.status(200).json({
+        status: "success",
+        total: 0,
+        data: [],
+      });
+    }
+
+    const whereRiwayat = { tahun_ajaran: tahunAjaranTerpakai };
+
+    if (tingkat) whereRiwayat.tingkat = String(tingkat);
+
+    if (kelasFilter) {
+      whereRiwayat.nama_kelas = kelasFilter.nama_kelas;
+      whereRiwayat.tingkat = String(kelasFilter.tingkat);
+    }
+
     const siswa = await SiswaPpdb.findAll({
       attributes: [
         "id_siswa",
@@ -705,30 +772,14 @@ const dataSiswa = async (req, res) => {
         },
 
         {
-          model: SiswaBaru,
-          as: "siswa_baru",
+          // required: true (INNER JOIN) - siswa yang belum punya riwayat_kelas
+          // untuk tahun ajaran ini otomatis tidak ikut muncul, tanpa fallback
+          // ke kelas_ppdb.
+          model: RiwayatKelas,
+          as: "riwayat_kelas",
+          attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
+          where: whereRiwayat,
           required: true,
-
-          include: [
-            {
-              model: KelasPpdb,
-              as: "kelas_ppdb",
-              attributes: [
-                "id_kelas",
-                "tingkat",
-                "nama_kelas",
-              ],
-
-              ...(tingkat || id_kelas
-                ? {
-                    where: {
-                      ...(tingkat && { tingkat }),
-                      ...(id_kelas && { id_kelas }),
-                    },
-                  }
-                : {}),
-            },
-          ],
         },
       ],
 
@@ -772,8 +823,16 @@ const dataSiswa = async (req, res) => {
             return total + toNumber(log.nominal);
           }, 0) || 0;
 
+      const riwayat = json.riwayat_kelas[0];
+
       return {
         ...json,
+
+        kelas_terkini: {
+          tingkat: riwayat.tingkat,
+          nama_kelas: riwayat.nama_kelas,
+          tahun_ajaran: riwayat.tahun_ajaran,
+        },
 
         target_ppdb: targetPpdb,
 
@@ -788,6 +847,7 @@ const dataSiswa = async (req, res) => {
     return res.status(200).json({
       status: "success",
       total: data.length,
+      tahun_ajaran: tahunAjaranTerpakai,
       data,
     });
   } catch (error) {
@@ -809,6 +869,7 @@ const logPpdb = async (req, res) => {
       tahun,
       keyword = "",
       jenis,
+      tahun_ajaran,
     } = req.query;
 
     const pageNumber = Number(page);
@@ -837,6 +898,17 @@ const logPpdb = async (req, res) => {
       ];
     }
 
+    let tahunAjaranTerpakai = tahun_ajaran;
+
+    if (!tahunAjaranTerpakai) {
+      const latest = await RiwayatKelas.findOne({
+        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
+        raw: true,
+      });
+
+      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
+    }
+
     const { count, rows } = await LogPpdb.findAndCountAll({
       where: whereLog,
       limit: limitNumber,
@@ -851,18 +923,13 @@ const logPpdb = async (req, res) => {
           attributes: ["id_siswa", "nama_lengkap", "tahun"],
           include: [
             {
-              model: SiswaBaru,
-              as: "siswa_baru",
+              model: RiwayatKelas,
+              as: "riwayat_kelas",
               required: false,
-              attributes: ["id_siswa", "id_kelas"],
-              include: [
-                {
-                  model: KelasPpdb,
-                  as: "kelas_ppdb",
-                  required: false,
-                  attributes: ["id_kelas", "tingkat", "nama_kelas"],
-                },
-              ],
+              attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
+              where: tahunAjaranTerpakai
+                ? { tahun_ajaran: tahunAjaranTerpakai }
+                : undefined,
             },
           ],
         },
@@ -876,7 +943,24 @@ const logPpdb = async (req, res) => {
       page: pageNumber,
       limit: limitNumber,
       totalPage: Math.ceil(count / limitNumber),
-      data: rows,
+      data: rows.map((item) => {
+        const json = item.toJSON();
+        const riwayat = json.siswa_ppdb?.riwayat_kelas?.[0] || null;
+
+        return {
+          ...json,
+          siswa_ppdb: {
+            ...json.siswa_ppdb,
+            kelas_terkini: riwayat
+              ? {
+                  tingkat: riwayat.tingkat,
+                  nama_kelas: riwayat.nama_kelas,
+                  tahun_ajaran: riwayat.tahun_ajaran,
+                }
+              : null,
+          },
+        };
+      }),
     });
   } catch (error) {
     console.error("Error logPpdb:", error);
@@ -1299,6 +1383,216 @@ const hapusArsipAngkatan = async (req, res) => {
   }
 };
 
+const arsipTahunAjaranSummary = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun_ajaran } = req.params;
+
+    const riwayat = await RiwayatKelas.findAll({
+      where: { tahun_ajaran },
+      attributes: ["id_siswa"],
+      raw: true,
+    });
+
+    const ids = [...new Set(riwayat.map((item) => item.id_siswa))];
+
+    const totalLogSpp =
+      ids.length > 0
+        ? await LogSpp.count({ where: { id_siswa: { [Op.in]: ids } } })
+        : 0;
+
+    const totalLogPpdb =
+      ids.length > 0
+        ? await LogPpdb.count({ where: { id_siswa: { [Op.in]: ids } } })
+        : 0;
+
+    return res.status(200).json({
+      status: "success",
+      message: "Summary tahun ajaran berhasil diambil.",
+      data: {
+        tahun_ajaran,
+        total_riwayat_kelas: riwayat.length,
+        total_siswa: ids.length,
+        total_log_spp: totalLogSpp,
+        total_log_ppdb: totalLogPpdb,
+      },
+    });
+  } catch (error) {
+    console.error("Error arsipTahunAjaranSummary:", error);
+
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal mengambil summary tahun ajaran.",
+      error: error.message,
+    });
+  }
+};
+
+const backupArsipTahunAjaran = async (req, res) => {
+  try {
+    if (!isAdminKeuangan(req)) {
+      return res.status(403).json({
+        status: "gagal",
+        message: "Akses ditolak. Hanya admin keuangan.",
+      });
+    }
+
+    const { tahun_ajaran } = req.params;
+
+    const riwayatKelas = await RiwayatKelas.findAll({
+      where: { tahun_ajaran },
+      raw: true,
+    });
+
+    const ids = [...new Set(riwayatKelas.map((item) => item.id_siswa))];
+
+    const siswaPpdb =
+      ids.length > 0
+        ? await SiswaPpdb.findAll({
+            where: { id_siswa: { [Op.in]: ids } },
+            raw: true,
+          })
+        : [];
+
+    const siswaBaru =
+      ids.length > 0
+        ? await SiswaBaru.findAll({
+            where: { id_siswa: { [Op.in]: ids } },
+            raw: true,
+          })
+        : [];
+
+    const logSppData =
+      ids.length > 0
+        ? await LogSpp.findAll({
+            where: { id_siswa: { [Op.in]: ids } },
+            raw: true,
+          })
+        : [];
+
+    const logPpdbData =
+      ids.length > 0
+        ? await LogPpdb.findAll({
+            where: { id_siswa: { [Op.in]: ids } },
+            raw: true,
+          })
+        : [];
+
+    const data = {
+      app: "backup-tahun-ajaran",
+      version: 1,
+      created_at: new Date().toISOString(),
+      tahun_ajaran,
+      riwayat_kelas: riwayatKelas,
+      siswa_ppdb: siswaPpdb,
+      siswa_baru: siswaBaru,
+      log_spp: logSppData,
+      log_ppdb: logPpdbData,
+    };
+
+    return sendJsonBackup(
+      res,
+      `backup-tahun-ajaran-${tahun_ajaran.replace(/\//g, "-")}-${Date.now()}.json`,
+      data
+    );
+  } catch (error) {
+    console.error("Error backupArsipTahunAjaran:", error);
+
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal backup tahun ajaran.",
+      error: error.message,
+    });
+  }
+};
+
+// Restore = tambahkan baris yang hilang saja (dicocokkan lewat primary key),
+// tidak menimpa data yang sudah ada - supaya aman diulang-ulang.
+const restoreRows = async (model, pkField, rows, transaction) => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { inserted: 0, skipped: 0 };
+  }
+
+  const ids = rows.map((row) => row[pkField]).filter(Boolean);
+
+  const existing = await model.findAll({
+    where: { [pkField]: { [Op.in]: ids } },
+    attributes: [pkField],
+    raw: true,
+    transaction,
+  });
+
+  const existingSet = new Set(existing.map((item) => item[pkField]));
+  const toInsert = rows.filter(
+    (row) => row[pkField] && !existingSet.has(row[pkField])
+  );
+
+  if (toInsert.length > 0) {
+    await model.bulkCreate(toInsert, { transaction, ignoreDuplicates: true });
+  }
+
+  return { inserted: toInsert.length, skipped: rows.length - toInsert.length };
+};
+
+const restoreArsipTahunAjaran = async (req, res) => {
+  if (!isAdminKeuangan(req)) {
+    return res.status(403).json({
+      status: "gagal",
+      message: "Akses ditolak. Hanya admin keuangan.",
+    });
+  }
+
+  const { siswa_ppdb, siswa_baru, riwayat_kelas, log_spp, log_ppdb } = req.body;
+
+  const t = await SiswaPpdb.sequelize.transaction();
+
+  try {
+    const rSiswa = await restoreRows(SiswaPpdb, "id_siswa", siswa_ppdb, t);
+    const rSiswaBaru = await restoreRows(
+      SiswaBaru,
+      "id_siswa_baru",
+      siswa_baru,
+      t
+    );
+    const rRiwayat = await restoreRows(
+      RiwayatKelas,
+      "id_riwayat",
+      riwayat_kelas,
+      t
+    );
+    const rLogSpp = await restoreRows(LogSpp, "id_logspp", log_spp, t);
+    const rLogPpdb = await restoreRows(LogPpdb, "id_log", log_ppdb, t);
+
+    await t.commit();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Restore tahun ajaran selesai.",
+      data: {
+        siswa_ppdb: rSiswa,
+        siswa_baru: rSiswaBaru,
+        riwayat_kelas: rRiwayat,
+        log_spp: rLogSpp,
+        log_ppdb: rLogPpdb,
+      },
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error restoreArsipTahunAjaran:", error);
+
+    return res.status(500).json({
+      status: "gagal",
+      message: "Gagal restore tahun ajaran.",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   masterSppData, dataSiswa, deleteLogPpdb,  arsipSummary,
@@ -1307,6 +1601,9 @@ backupArsipSiswa,
 backupArsipLogSpp,
 backupArsipLogPpdb,
 hapusArsipAngkatan,
+arsipTahunAjaranSummary,
+backupArsipTahunAjaran,
+restoreArsipTahunAjaran,
   logLastSpp,
   bayarSpp, logSpp, detailLog, updateLog, deleteLog,
   createMaster, updateMaster, detailMaster, deleteMaster, logLainnya, updateLoglainnya, deleteLogLainnya, createLogLainnya, laporan, logPpdb

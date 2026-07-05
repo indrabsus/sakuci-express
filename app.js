@@ -21,6 +21,7 @@ const rfidRoutes = require("./routes/rfidRoutes");
 const presensiRoutes = require("./routes/presensiRoutes");
 const zkRoutes = require("./routes/zkRoutes");
 const tamuRoutes = require("./routes/tamuRoutes");
+const riwayatKelasRoutes = require("./routes/riwayatKelasRoutes");
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use("/rfid", rfidRoutes);
 app.use("/presensi", presensiRoutes);
 app.use("/zk", zkRoutes);
 app.use("/tamu", tamuRoutes);
+app.use("/riwayat-kelas", riwayatKelasRoutes);
 
 app.get("/", (req, res) => {
   res.json({
