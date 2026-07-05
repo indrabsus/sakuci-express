@@ -109,7 +109,7 @@ const riwayatByTahun = async (req, res) => {
         {
           model: SiswaPpdb,
           as: "siswa_ppdb",
-          attributes: ["id_siswa", "nama_lengkap", "nisn", "status"],
+          attributes: ["id_siswa", "nama_lengkap", "nisn", "status", "jenkel"],
         },
       ],
       order: [["tingkat", "ASC"], ["nama_kelas", "ASC"]],
