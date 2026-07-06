@@ -61,6 +61,7 @@ const backupDatabase = async (req, res) => {
     const args = [
       "-h",
       process.env.DB_HOST,
+      "--protocol=TCP",
       "-u",
       process.env.DB_USERNAME,
       "--routines",
@@ -112,7 +113,14 @@ const restoreDatabase = async (req, res) => {
     await new Promise((resolve, reject) => {
       const child = spawn(
         "mysql",
-        ["-h", process.env.DB_HOST, "-u", process.env.DB_USERNAME, process.env.DB_NAME],
+        [
+          "-h",
+          process.env.DB_HOST,
+          "--protocol=TCP",
+          "-u",
+          process.env.DB_USERNAME,
+          process.env.DB_NAME,
+        ],
         { env }
       );
 
