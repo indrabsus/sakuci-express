@@ -1392,7 +1392,14 @@ const arsipTahunAjaranSummary = async (req, res) => {
       });
     }
 
-    const { tahun_ajaran } = req.params;
+    const { tahun_ajaran } = req.query;
+
+    if (!tahun_ajaran) {
+      return res.status(400).json({
+        status: "gagal",
+        message: "Parameter tahun_ajaran wajib diisi.",
+      });
+    }
 
     const riwayat = await RiwayatKelas.findAll({
       where: { tahun_ajaran },
@@ -1443,7 +1450,14 @@ const backupArsipTahunAjaran = async (req, res) => {
       });
     }
 
-    const { tahun_ajaran } = req.params;
+    const { tahun_ajaran } = req.query;
+
+    if (!tahun_ajaran) {
+      return res.status(400).json({
+        status: "gagal",
+        message: "Parameter tahun_ajaran wajib diisi.",
+      });
+    }
 
     const riwayatKelas = await RiwayatKelas.findAll({
       where: { tahun_ajaran },

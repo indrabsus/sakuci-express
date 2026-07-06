@@ -150,16 +150,8 @@ router.get("/arsip/backup-log-spp/:tahun", proteksi, backupArsipLogSpp);
 router.get("/arsip/backup-log-ppdb/:tahun", proteksi, backupArsipLogPpdb);
 router.delete("/arsip/hapus-angkatan/:tahun", proteksi, hapusArsipAngkatan);
 
-router.get(
-  "/arsip/summary-ta/:tahun_ajaran",
-  proteksi,
-  arsipTahunAjaranSummary
-);
-router.get(
-  "/arsip/backup-ta/:tahun_ajaran",
-  proteksi,
-  backupArsipTahunAjaran
-);
+router.get("/arsip/summary-ta", proteksi, arsipTahunAjaranSummary);
+router.get("/arsip/backup-ta", proteksi, backupArsipTahunAjaran);
 router.post("/arsip/restore-ta", proteksi, restoreArsipTahunAjaran);
 
 
