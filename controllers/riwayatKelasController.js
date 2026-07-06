@@ -1,5 +1,5 @@
 const { RiwayatKelas, SiswaPpdb } = require("../models");
-const { fn, col } = require("sequelize");
+const { fn, col, Op, literal } = require("sequelize");
 
 const daftarTahunAjaran = async (req, res) => {
   try {
@@ -248,6 +248,66 @@ const deleteRiwayat = async (req, res) => {
   }
 };
 
+const belumMasukKelas = async (req, res) => {
+  const { tahun_ajaran, search } = req.query;
+
+  if (!tahun_ajaran) {
+    return res.status(400).json({
+      status: "error",
+      message: "Parameter tahun_ajaran wajib diisi.",
+    });
+  }
+
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+
+    const where = {
+      status: "aktif",
+      id_siswa: {
+        [Op.notIn]: literal(
+          `(SELECT id_siswa FROM riwayat_kelas WHERE tahun_ajaran = ${RiwayatKelas.sequelize.escape(
+            tahun_ajaran
+          )})`
+        ),
+      },
+    };
+
+    if (search) {
+      where[Op.or] = [
+        { nama_lengkap: { [Op.like]: `%${search}%` } },
+        { nisn: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    const { count, rows } = await SiswaPpdb.findAndCountAll({
+      where,
+      attributes: ["id_siswa", "nama_lengkap", "nisn", "jenkel"],
+      order: [["nama_lengkap", "ASC"]],
+      limit,
+      offset: (page - 1) * limit,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Data siswa belum masuk kelas berhasil diambil.",
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        total_pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil data siswa belum masuk kelas.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   riwayatSiswa,
   kelasTerkini,
@@ -257,4 +317,5 @@ module.exports = {
   naikKelas,
   deleteRiwayat,
   tahunAjaranAktif,
+  belumMasukKelas,
 };

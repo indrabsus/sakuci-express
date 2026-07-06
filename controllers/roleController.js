@@ -251,7 +251,38 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const resetPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({ where: { id } });
+
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User tidak ditemukan",
+      });
+    }
+
+    const defaultPassword = "123456";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    await user.update({ password: hashedPassword });
+
+    return res.status(200).json({
+      status: "sukses",
+      message: `Password berhasil direset ke default (${defaultPassword})`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Server error",
+      error,
+    });
+  }
+};
+
 module.exports = {
   getAllRoles, updateUser, deleteUser, createUser,
-  createRole, updateRole, deleteRole, userData
+  createRole, updateRole, deleteRole, userData, resetPassword
 };

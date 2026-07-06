@@ -22,6 +22,7 @@ const presensiRoutes = require("./routes/presensiRoutes");
 const zkRoutes = require("./routes/zkRoutes");
 const tamuRoutes = require("./routes/tamuRoutes");
 const riwayatKelasRoutes = require("./routes/riwayatKelasRoutes");
+const backupRoutes = require("./routes/backupRoutes");
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/presensi", presensiRoutes);
 app.use("/zk", zkRoutes);
 app.use("/tamu", tamuRoutes);
 app.use("/riwayat-kelas", riwayatKelasRoutes);
+app.use("/backup", backupRoutes);
 
 app.get("/", (req, res) => {
   res.json({

@@ -1,4 +1,5 @@
 const {SiswaPpdb, SiswaBaru, KelasPpdb} = require('../models'); // Pastikan path benar
+const { Op } = require('sequelize');
 
 const dataSiswa = async (req, res) => {
     try {
@@ -83,4 +84,81 @@ res.status(200).json({
     }
   }
 
-  module.exports = {dataSiswa, siswaDetail, hitungSiswa};
+  const SORTABLE_COLUMNS = {
+    nama: 'nama_lengkap',
+    nisn: 'nisn',
+    tahun: 'tahun',
+    status: 'status',
+    username: 'username',
+  };
+
+  const masterSiswa = async (req, res) => {
+    try {
+      const { tahun, status, search, sort_by, sort_dir } = req.query;
+      const page = Math.max(Number(req.query.page) || 1, 1);
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+
+      const where = {};
+
+      if (tahun) where.tahun = tahun;
+      if (status) where.status = status;
+
+      if (search) {
+        where[Op.or] = [
+          { nama_lengkap: { [Op.like]: `%${search}%` } },
+          { nisn: { [Op.like]: `%${search}%` } },
+          { username: { [Op.like]: `%${search}%` } },
+        ];
+      }
+
+      const dir = String(sort_dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+      const order =
+        sort_by === 'kelas'
+          ? [
+              [
+                { model: SiswaBaru, as: 'siswa_baru' },
+                { model: KelasPpdb, as: 'kelas_ppdb' },
+                'nama_kelas',
+                dir,
+              ],
+            ]
+          : [[SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir]];
+
+      const { count, rows } = await SiswaPpdb.findAndCountAll({
+        where,
+        include: [
+          {
+            model: SiswaBaru,
+            as: 'siswa_baru',
+            required: false,
+            include: [{ model: KelasPpdb, as: 'kelas_ppdb' }],
+          },
+        ],
+        order,
+        limit,
+        offset: (page - 1) * limit,
+        distinct: true,
+      });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Data siswa berhasil diambil.',
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          total: count,
+          total_pages: Math.ceil(count / limit),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Gagal mengambil data siswa.',
+        error: error.message,
+      });
+    }
+  }
+
+  module.exports = {dataSiswa, siswaDetail, hitungSiswa, masterSiswa};

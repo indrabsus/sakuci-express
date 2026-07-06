@@ -9,12 +9,14 @@ const {
   naikKelas,
   deleteRiwayat,
   tahunAjaranAktif,
+  belumMasukKelas,
 } = require('../controllers/riwayatKelasController');
 
 const router = express.Router();
 
 router.get('/tahun-aktif', proteksi, tahunAjaranAktif);
 router.get('/tahun-list', proteksi, daftarTahunAjaran);
+router.get('/belum-kelas', proteksi, belumMasukKelas);
 router.get('/siswa/:id_siswa', proteksi, riwayatSiswa);
 router.get('/terkini/:id_siswa', proteksi, kelasTerkini);
 router.get('/tahun', proteksi, riwayatByTahun);
