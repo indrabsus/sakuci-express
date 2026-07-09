@@ -185,7 +185,15 @@ const bayarSpp = async (req, res) => {
 
 const logSpp = async (req, res) => {
   try {
-    const { keyword, tingkat, tahun_ajaran, page = 1, limit = 50 } = req.query;
+    const {
+      keyword,
+      tingkat,
+      tahun_ajaran,
+      start_date,
+      end_date,
+      page = 1,
+      limit = 50,
+    } = req.query;
 
     const pageNumber = Number(page);
     const limitNumber = Number(limit);
@@ -197,6 +205,20 @@ const logSpp = async (req, res) => {
       whereSiswa.nama_lengkap = {
         [Op.like]: `%${keyword}%`,
       };
+    }
+
+    const whereLog = {};
+
+    if (start_date || end_date) {
+      whereLog.created_at = {};
+
+      if (start_date) {
+        whereLog.created_at[Op.gte] = new Date(`${start_date}T00:00:00`);
+      }
+
+      if (end_date) {
+        whereLog.created_at[Op.lte] = new Date(`${end_date}T23:59:59.999`);
+      }
     }
 
     const pakaiFilterTingkat = !!(tingkat && tingkat !== "semua");
@@ -235,6 +257,8 @@ const logSpp = async (req, res) => {
   "bukti",
   "created_at",
 ],
+
+      where: Object.keys(whereLog).length ? whereLog : undefined,
 
       include: [
         {
