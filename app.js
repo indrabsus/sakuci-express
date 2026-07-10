@@ -1,8 +1,11 @@
 const express = require("express");
 const cors = require("cors");
+const cron = require("node-cron");
 const path = require("path");
 
 require("dotenv").config();
+
+const { runScheduledBackup } = require("./controllers/backupController");
 
 const authRoutes = require("./routes/authRoutes");
 const ppdbRoutes = require("./routes/ppdbRoutes");
@@ -73,6 +76,9 @@ app.get("/", (req, res) => {
     status: "Server Ready...!",
   });
 });
+
+// Backup database otomatis tiap hari jam 01:00 (Asia/Jakarta), simpan 3 backup terakhir
+cron.schedule("0 1 * * *", runScheduledBackup, { timezone: "Asia/Jakarta" });
 
 const PORT = process.env.PORT || 3000;
 

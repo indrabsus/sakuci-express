@@ -45,36 +45,79 @@ const runCommand = (command, args, env) => {
   });
 };
 
-const backupDatabase = async (req, res) => {
+const BACKUP_RETENTION_LIMIT = 3;
+
+const enforceRetention = (limit = BACKUP_RETENTION_LIMIT) => {
+  ensureBackupDir();
+
+  const files = fs
+    .readdirSync(BACKUP_DIR)
+    .filter((name) => name.endsWith(".sql"))
+    .map((name) => {
+      const filePath = path.join(BACKUP_DIR, name);
+      return { name, filePath, mtime: fs.statSync(filePath).mtime.getTime() };
+    })
+    .sort((a, b) => b.mtime - a.mtime);
+
+  const stale = files.slice(limit);
+
+  for (const file of stale) {
+    fs.unlink(file.filePath, (error) => {
+      if (error) {
+        console.error(`Gagal menghapus backup lama (${file.name}):`, error.message);
+      }
+    });
+  }
+
+  return stale.map((file) => file.name);
+};
+
+const dumpDatabase = async (prefix = "backup") => {
   ensureBackupDir();
 
   const dbName = process.env.DB_NAME;
-  const filename = `backup-${dbName}-${dayjs().format("YYYY-MM-DD-HHmmss")}.sql`;
+  const filename = `${prefix}-${dbName}-${dayjs().format("YYYY-MM-DD-HHmmss")}.sql`;
   const filePath = path.join(BACKUP_DIR, filename);
 
+  const env = {
+    ...process.env,
+    MYSQL_PWD: process.env.DB_PASSWORD || "",
+  };
+
+  const args = [
+    "-h",
+    process.env.DB_HOST,
+    "--protocol=TCP",
+    "-u",
+    process.env.DB_USERNAME,
+    "--routines",
+    "--triggers",
+    "--single-transaction",
+    "--result-file",
+    filePath,
+    dbName,
+  ];
+
   try {
-    const env = {
-      ...process.env,
-      MYSQL_PWD: process.env.DB_PASSWORD || "",
-    };
-
-    const args = [
-      "-h",
-      process.env.DB_HOST,
-      "--protocol=TCP",
-      "-u",
-      process.env.DB_USERNAME,
-      "--routines",
-      "--triggers",
-      "--single-transaction",
-      "--result-file",
-      filePath,
-      dbName,
-    ];
-
     await runCommand("mysqldump", args, env);
+  } catch (error) {
+    fs.unlink(filePath, () => {});
+    throw error;
+  }
 
-    return res.download(filePath, filename, (error) => {
+  return { filename, filePath };
+};
+
+const backupDatabase = async (req, res) => {
+  let filePath;
+
+  try {
+    const dump = await dumpDatabase("backup");
+    filePath = dump.filePath;
+
+    enforceRetention();
+
+    return res.download(filePath, dump.filename, (error) => {
       if (error) {
         console.error("Error mengirim file backup:", error);
       }
@@ -82,13 +125,26 @@ const backupDatabase = async (req, res) => {
   } catch (error) {
     console.error("ERROR BACKUP DATABASE:", error);
 
-    fs.unlink(filePath, () => {});
-
     return res.status(500).json({
       status: "error",
       message: "Backup database gagal.",
       error: error.message,
     });
+  }
+};
+
+const runScheduledBackup = async () => {
+  try {
+    const dump = await dumpDatabase("auto-backup");
+    const removed = enforceRetention();
+
+    console.log(`[backup terjadwal] Berhasil membuat ${dump.filename}.`);
+
+    if (removed.length > 0) {
+      console.log(`[backup terjadwal] Menghapus backup lama: ${removed.join(", ")}.`);
+    }
+  } catch (error) {
+    console.error("[backup terjadwal] Gagal membuat backup otomatis:", error.message);
   }
 };
 
@@ -271,4 +327,5 @@ module.exports = {
   listBackup,
   downloadBackup,
   deleteBackup,
+  runScheduledBackup,
 };
