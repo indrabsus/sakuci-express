@@ -1,7 +1,8 @@
 // controllers/rfidController.js
-const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, Absen, User, DataUser } = require('../models');
+const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, Absen, User, DataUser, Role } = require('../models');
 const { Op } = require('sequelize');
 const dayjs = require('dayjs');
+require('dayjs/locale/id');
 
 const presensiHarian = async (req, res) => {
   try {
@@ -390,4 +391,160 @@ const absenGuru = async (req, res) => {
   }
 };
 
-module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid, tarik, absenGuru };
+const absenStaf = async (req, res) => {
+  try {
+    const { id_user } = req.params;
+    const { bulan, tahun } = req.query;
+
+    const where = { id_user };
+
+    if (bulan && tahun) {
+      const awal = dayjs(`${tahun}-${String(bulan).padStart(2, '0')}-01`).startOf('month');
+      const akhir = awal.endOf('month');
+
+      where.waktu = {
+        [Op.between]: [awal.format('YYYY-MM-DD HH:mm:ss'), akhir.format('YYYY-MM-DD HH:mm:ss')],
+      };
+    }
+
+    const data = await Absen.findAll({
+      where,
+      order: [['waktu', 'ASC']],
+    });
+
+    return res.json({
+      status: 'success',
+      total: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: 'Terjadi kesalahan server',
+      error: error.message,
+    });
+  }
+};
+
+const STATUS_IZIN_LABEL = { '1': 'dispen', '2': 'sakit', '3': 'izin' };
+const BATAS_TERLAMBAT_MENIT = 6 * 60 + 31; // 06:31
+
+const jamKeMenit = (jam) => {
+  const [h, m] = jam.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const rekapKehadiran = async (req, res) => {
+  try {
+    const { uid_fp } = req.params;
+    const { bulan, tahun } = req.query;
+
+    if (!uid_fp || !bulan || !tahun) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Parameter uid_fp, bulan, dan tahun wajib diisi.',
+      });
+    }
+
+    const dataUser = await DataUser.findOne({
+      where: { uid_fp },
+      include: [{ model: User, as: 'user', include: [{ model: Role, as: 'role' }] }],
+    });
+
+    if (!dataUser || !dataUser.user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Staf dengan uid_fp tersebut tidak ditemukan.',
+      });
+    }
+
+    const idUser = dataUser.user.id;
+    const namaRole = dataUser.user.role?.nama_role || null;
+
+    const awal = dayjs(`${tahun}-${String(bulan).padStart(2, '0')}-01`).startOf('month');
+    const akhir = awal.endOf('month');
+
+    const absen = await Absen.findAll({
+      where: {
+        id_user: idUser,
+        waktu: {
+          [Op.between]: [awal.format('YYYY-MM-DD HH:mm:ss'), akhir.format('YYYY-MM-DD HH:mm:ss')],
+        },
+      },
+      order: [['waktu', 'ASC']],
+      raw: true,
+    });
+
+    const byDate = {};
+    absen.forEach((item) => {
+      const key = item.waktu.slice(0, 10);
+      byDate[key] = byDate[key] || [];
+      byDate[key].push(item);
+    });
+
+    const rekap = [];
+    const jumlahHari = awal.daysInMonth();
+
+    for (let d = 1; d <= jumlahHari; d++) {
+      const tgl = dayjs(`${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+      const dow = tgl.day(); // 0 = Minggu, 6 = Sabtu
+
+      if (dow === 0 || dow === 6) continue;
+
+      const key = tgl.format('YYYY-MM-DD');
+      const records = byDate[key] || [];
+      const izin = records.find((r) => STATUS_IZIN_LABEL[r.status]);
+      const catatan = records.find((r) => r.keterangan && String(r.keterangan).trim() !== '')?.keterangan || null;
+
+      let jamDatang = null;
+      let jamPulang = null;
+      let status = 'tidak_ada_data';
+      let terlambat = false;
+
+      if (izin) {
+        status = STATUS_IZIN_LABEL[izin.status];
+      } else {
+        const masuk = records.filter((r) => r.status === '0').sort((a, b) => a.waktu.localeCompare(b.waktu))[0];
+        const keluar = records.filter((r) => r.status === '4').sort((a, b) => b.waktu.localeCompare(a.waktu))[0];
+
+        if (masuk) {
+          jamDatang = masuk.waktu.slice(11, 16);
+          terlambat = jamKeMenit(jamDatang) > BATAS_TERLAMBAT_MENIT;
+        }
+        if (keluar) jamPulang = keluar.waktu.slice(11, 16);
+
+        status = masuk || keluar ? 'hadir' : 'tidak_ada_data';
+      }
+
+      rekap.push({
+        tanggal: key,
+        hari: tgl.locale('id').format('dddd'),
+        status,
+        jam_datang: jamDatang,
+        jam_pulang: jamPulang,
+        terlambat,
+        keterangan: catatan,
+      });
+    }
+
+    return res.json({
+      status: 'success',
+      uid_fp,
+      id_user: idUser,
+      nama_lengkap: dataUser.nama_lengkap,
+      role: namaRole,
+      bulan: Number(bulan),
+      tahun: Number(tahun),
+      data: rekap,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Terjadi kesalahan server',
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, logRfid, tarik, absenGuru, absenStaf, rekapKehadiran };
