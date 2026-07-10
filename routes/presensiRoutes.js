@@ -11,6 +11,6 @@ router.get('/logrfid/:url?/:mesin?', proteksi,logRfid);
 router.get('/tarik/:ip/:mesin', proteksi,tarik);
 router.get('/absenguru',absenGuru);
 router.get('/absen-staf/:id_user', proteksi, absenStaf);
-router.get('/rekap-kehadiran/:uid_fp', proteksi, rekapKehadiran);
+router.get('/rekap-kehadiran/:uid_fp', rekapKehadiran); // tanpa proteksi, dipanggil aplikasi eksternal (Supabase) via uid_fp
 
 module.exports = router;
