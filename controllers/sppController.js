@@ -353,7 +353,13 @@ const detailLog = async (req, res) => {
 const updateLog = async (req, res) => {
   try {
     const { id_logspp } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+
+    // multer taruh file upload di req.file, bukan req.body - cuma timpa
+    // bukti kalau memang ada file baru yang diupload.
+    if (req.file) {
+      updateData.bukti = "/uploads/bukti/" + req.file.filename;
+    }
 
     const data = await LogSpp.findOne({ where: { id_logspp } });
 

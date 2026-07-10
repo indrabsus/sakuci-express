@@ -121,7 +121,12 @@ router.delete("/deletemaster/:id_spp", proteksi, deleteMaster);
 router.get("/loglast/:id_siswa", proteksi, logLastSpp);
 router.get("/log", logSpp);
 router.get("/logdetail/:id_logspp", proteksi, detailLog);
-router.put("/updatelog/:id_logspp", proteksi, updateLog);
+router.put(
+  "/updatelog/:id_logspp",
+  proteksi,
+  upload.single("bukti"),
+  updateLog
+);
 router.delete("/deletelog/:id_logspp", proteksi, deleteLog);
 
 // LOG PPDB
