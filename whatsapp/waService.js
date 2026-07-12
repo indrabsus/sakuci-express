@@ -189,6 +189,7 @@ const getMessages = async (chatId, limit = 50) => {
 
   const chat = await client.getChatById(chatId);
   const messages = await chat.fetchMessages({ limit });
+  await chat.sendSeen();
   return messages.map(mapMessage);
 };
 
