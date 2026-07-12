@@ -1,0 +1,233 @@
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const qrcode = require("qrcode");
+const { EventEmitter } = require("events");
+
+const emitter = new EventEmitter();
+
+let io = null;
+let client = null;
+let status = "idle"; // idle | loading | qr | authenticated | ready | disconnected
+let qrDataUrl = null;
+let info = null;
+
+const broadcast = (event, payload) => {
+  if (io) io.of("/wa").emit(event, payload);
+};
+
+const setStatus = (next) => {
+  status = next;
+  emitter.emit("status", status);
+  broadcast("status", { status, info });
+};
+
+const mapChat = (chat) => ({
+  id: chat.id._serialized,
+  name: chat.name || chat.id.user,
+  isGroup: chat.isGroup,
+  unreadCount: chat.unreadCount,
+  timestamp: chat.timestamp,
+  lastMessage: chat.lastMessage
+    ? {
+        body: chat.lastMessage.body,
+        fromMe: chat.lastMessage.fromMe,
+        timestamp: chat.lastMessage.timestamp,
+        hasMedia: chat.lastMessage.hasMedia,
+      }
+    : null,
+});
+
+const mapMessage = (message) => ({
+  id: message.id._serialized,
+  chatId: message.fromMe ? message.to : message.from,
+  body: message.body,
+  fromMe: message.fromMe,
+  timestamp: message.timestamp,
+  author: message.author || null,
+  hasMedia: message.hasMedia,
+  type: message.type,
+});
+
+const createClient = () => {
+  const c = new Client({
+    authStrategy: new LocalAuth({ clientId: "admin" }),
+    puppeteer: {
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    },
+  });
+
+  c.on("qr", async (qr) => {
+    qrDataUrl = await qrcode.toDataURL(qr);
+    info = null;
+    setStatus("qr");
+  });
+
+  c.on("authenticated", () => {
+    qrDataUrl = null;
+    setStatus("authenticated");
+  });
+
+  c.on("ready", () => {
+    qrDataUrl = null;
+    info = {
+      number: c.info?.wid?.user || null,
+      name: c.info?.pushname || null,
+    };
+    setStatus("ready");
+  });
+
+  c.on("disconnected", () => {
+    info = null;
+    qrDataUrl = null;
+    setStatus("disconnected");
+  });
+
+  c.on("message", (message) => {
+    broadcast("message", mapMessage(message));
+  });
+
+  c.on("message_create", (message) => {
+    if (message.fromMe) {
+      broadcast("message", mapMessage(message));
+    }
+  });
+
+  return c;
+};
+
+const attachIO = (ioInstance) => {
+  io = ioInstance;
+};
+
+const ensureInitialized = () => {
+  if (client) return;
+
+  client = createClient();
+  setStatus("loading");
+  client.initialize().catch((err) => {
+    console.error("WA client failed to initialize:", err.message);
+    setStatus("disconnected");
+  });
+};
+
+const getStatus = () => {
+  ensureInitialized();
+  return { status, qr: qrDataUrl, info };
+};
+
+const getChats = async () => {
+  if (!client || status !== "ready") {
+    throw new Error("WhatsApp belum terhubung.");
+  }
+
+  const chats = await client.getChats();
+  return chats.map(mapChat);
+};
+
+const getMessages = async (chatId, limit = 50) => {
+  if (!client || status !== "ready") {
+    throw new Error("WhatsApp belum terhubung.");
+  }
+
+  const chat = await client.getChatById(chatId);
+  const messages = await chat.fetchMessages({ limit });
+  return messages.map(mapMessage);
+};
+
+const sendMessage = async (chatId, body) => {
+  if (!client || status !== "ready") {
+    throw new Error("WhatsApp belum terhubung.");
+  }
+
+  const message = await client.sendMessage(chatId, body);
+  return mapMessage(message);
+};
+
+const formatNoHp = (noHp) => {
+  let formatted = String(noHp).replace(/[^0-9]/g, "");
+
+  if (formatted.startsWith("0")) {
+    formatted = "62" + formatted.slice(1);
+  } else if (!formatted.startsWith("62")) {
+    formatted = "62" + formatted;
+  }
+
+  return formatted;
+};
+
+const waitUntilReady = async (timeoutMs = 20000) => {
+  ensureInitialized();
+
+  if (status === "ready") return;
+
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      emitter.off("status", onStatus);
+      reject(new Error("WhatsApp belum terhubung (timeout). Buka menu WhatsApp Bot dan pastikan sudah terkoneksi/scan QR."));
+    }, timeoutMs);
+
+    const onStatus = (next) => {
+      if (next === "ready") {
+        clearTimeout(timer);
+        emitter.off("status", onStatus);
+        resolve();
+      } else if (next === "disconnected") {
+        clearTimeout(timer);
+        emitter.off("status", onStatus);
+        reject(new Error("WhatsApp terputus. Buka menu WhatsApp Bot untuk menyambungkan ulang."));
+      }
+    };
+
+    emitter.on("status", onStatus);
+  });
+};
+
+const sendMessageToNumber = async (noHp, body) => {
+  await waitUntilReady();
+
+  const chatId = `${formatNoHp(noHp)}@c.us`;
+  const message = await client.sendMessage(chatId, body);
+  return mapMessage(message);
+};
+
+const getMedia = async (chatId, messageId) => {
+  if (!client || status !== "ready") {
+    throw new Error("WhatsApp belum terhubung.");
+  }
+
+  const chat = await client.getChatById(chatId);
+  const messages = await chat.fetchMessages({ limit: 100 });
+  const message = messages.find((m) => m.id._serialized === messageId);
+
+  if (!message) {
+    throw new Error("Pesan tidak ditemukan.");
+  }
+
+  const media = await message.downloadMedia();
+  if (!media) {
+    throw new Error("Media tidak tersedia.");
+  }
+
+  return { mimetype: media.mimetype, data: media.data };
+};
+
+const logout = async () => {
+  if (!client) return;
+
+  await client.logout();
+  client = null;
+  info = null;
+  qrDataUrl = null;
+  setStatus("idle");
+};
+
+module.exports = {
+  attachIO,
+  ensureInitialized,
+  getStatus,
+  getChats,
+  getMessages,
+  sendMessage,
+  sendMessageToNumber,
+  getMedia,
+  logout,
+};
