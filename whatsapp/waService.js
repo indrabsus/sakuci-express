@@ -1,6 +1,11 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const { EventEmitter } = require("events");
+const fs = require("fs/promises");
+const path = require("path");
+
+const CLIENT_ID = "admin";
+const SESSION_DIR = path.join(process.cwd(), ".wwebjs_auth", `session-${CLIENT_ID}`);
 
 const emitter = new EventEmitter();
 
@@ -49,7 +54,7 @@ const mapMessage = (message) => ({
 
 const createClient = () => {
   const c = new Client({
-    authStrategy: new LocalAuth({ clientId: "admin" }),
+    authStrategy: new LocalAuth({ clientId: CLIENT_ID }),
     puppeteer: {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     },
@@ -213,7 +218,28 @@ const getMedia = async (chatId, messageId) => {
 const logout = async () => {
   if (!client) return;
 
-  await client.logout();
+  try {
+    await client.logout();
+  } catch (err) {
+    // whatsapp-web.js's LocalAuth tries to delete the Chrome profile folder
+    // immediately after logout, before Chromium fully releases its file
+    // locks — this routinely fails with ENOTEMPTY/EBUSY even though the
+    // account was already unlinked successfully. Clean up below instead.
+    console.error("WA logout: sesi terputus tapi gagal hapus folder profil:", err.message);
+  }
+
+  try {
+    await client.destroy();
+  } catch {
+    // client may already be torn down by logout(); ignore.
+  }
+
+  try {
+    await fs.rm(SESSION_DIR, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch (err) {
+    console.error("WA logout: gagal membersihkan folder sesi:", err.message);
+  }
+
   client = null;
   info = null;
   qrDataUrl = null;

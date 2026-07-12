@@ -32,6 +32,14 @@ const riwayatKelasRoutes = require("./routes/riwayatKelasRoutes");
 const backupRoutes = require("./routes/backupRoutes");
 const waRoutes = require("./routes/waRoutes");
 
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception (server tetap jalan):", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection (server tetap jalan):", reason);
+});
+
 const app = express();
 
 app.use(
