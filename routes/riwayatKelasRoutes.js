@@ -5,6 +5,7 @@ const {
   kelasTerkini,
   riwayatByTahun,
   daftarTahunAjaran,
+  daftarKelasByTahun,
   createRiwayat,
   naikKelas,
   deleteRiwayat,
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.get('/tahun-aktif', proteksi, tahunAjaranAktif);
 router.get('/tahun-list', proteksi, daftarTahunAjaran);
+router.get('/kelas-list', proteksi, daftarKelasByTahun);
 router.get('/belum-kelas', proteksi, belumMasukKelas);
 router.get('/siswa/:id_siswa', proteksi, riwayatSiswa);
 router.get('/terkini/:id_siswa', proteksi, kelasTerkini);

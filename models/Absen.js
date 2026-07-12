@@ -13,8 +13,8 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       keterangan: {
-        type: DataTypes.BIGINT,
-        allowNull: false,
+        type: DataTypes.STRING(255),
+        allowNull: true,
       },
       waktu: {
         type: DataTypes.DATE,

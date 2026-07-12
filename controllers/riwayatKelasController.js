@@ -248,6 +248,39 @@ const deleteRiwayat = async (req, res) => {
   }
 };
 
+const daftarKelasByTahun = async (req, res) => {
+  const { tahun_ajaran } = req.query;
+
+  if (!tahun_ajaran) {
+    return res.status(400).json({
+      status: "error",
+      message: "Parameter tahun_ajaran wajib diisi.",
+    });
+  }
+
+  try {
+    const rows = await RiwayatKelas.findAll({
+      attributes: ["tingkat", "nama_kelas"],
+      where: { tahun_ajaran },
+      group: ["tingkat", "nama_kelas"],
+      order: [["tingkat", "ASC"], ["nama_kelas", "ASC"]],
+      raw: true,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Daftar kelas berhasil diambil.",
+      data: rows,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal mengambil daftar kelas.",
+      error: error.message,
+    });
+  }
+};
+
 const belumMasukKelas = async (req, res) => {
   const { tahun_ajaran, search } = req.query;
 
@@ -313,6 +346,7 @@ module.exports = {
   kelasTerkini,
   riwayatByTahun,
   daftarTahunAjaran,
+  daftarKelasByTahun,
   createRiwayat,
   naikKelas,
   deleteRiwayat,
