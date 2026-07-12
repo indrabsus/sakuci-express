@@ -122,11 +122,32 @@ const attachIO = (ioInstance) => {
   io = ioInstance;
 };
 
+const attachPageDebugLogging = (c, attemptsLeft = 50) => {
+  if (c.pupPage) {
+    c.pupPage.on("console", (msg) => {
+      if (msg.type() === "error" || msg.type() === "warning") {
+        console.log(`WA page console [${msg.type()}]:`, msg.text());
+      }
+    });
+    c.pupPage.on("pageerror", (err) => {
+      console.error("WA page error:", err.message);
+    });
+    c.pupPage.on("requestfailed", (req) => {
+      console.error("WA page request failed:", req.url(), "-", req.failure()?.errorText);
+    });
+    return;
+  }
+
+  if (attemptsLeft <= 0) return;
+  setTimeout(() => attachPageDebugLogging(c, attemptsLeft - 1), 300);
+};
+
 const ensureInitialized = () => {
   if (client) return;
 
   client = createClient();
   setStatus("loading");
+  attachPageDebugLogging(client);
   client.initialize().catch((err) => {
     console.error("WA client failed to initialize:", err.message);
     setStatus("disconnected");
