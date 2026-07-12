@@ -124,6 +124,11 @@ waNamespace.use((socket, next) => {
 
 waService.attachIO(io);
 
+server.on("error", (err) => {
+  console.error(`Gagal listen di port ${PORT}:`, err.message);
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
