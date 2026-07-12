@@ -68,7 +68,12 @@ const createClient = () => {
 
   c.on("authenticated", () => {
     qrDataUrl = null;
+    console.log("WA: authenticated, menunggu sinkronisasi (event ready)...");
     setStatus("authenticated");
+  });
+
+  c.on("loading_screen", (percent, message) => {
+    console.log(`WA: loading_screen ${percent}% - ${message}`);
   });
 
   c.on("ready", () => {
@@ -77,10 +82,18 @@ const createClient = () => {
       number: c.info?.wid?.user || null,
       name: c.info?.pushname || null,
     };
+    console.log("WA: ready, tersambung sebagai", info.number);
     setStatus("ready");
   });
 
-  c.on("disconnected", () => {
+  c.on("auth_failure", (message) => {
+    console.error("WA: auth_failure -", message);
+    qrDataUrl = null;
+    setStatus("disconnected");
+  });
+
+  c.on("disconnected", (reason) => {
+    console.log("WA: disconnected -", reason);
     info = null;
     qrDataUrl = null;
     setStatus("disconnected");
