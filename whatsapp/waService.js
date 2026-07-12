@@ -7,6 +7,12 @@ const path = require("path");
 const CLIENT_ID = "admin";
 const SESSION_DIR = path.join(process.cwd(), ".wwebjs_auth", `session-${CLIENT_ID}`);
 
+// Versi WhatsApp Web yang diketahui kompatibel dengan whatsapp-web.js,
+// diarsipkan dari build resmi WhatsApp oleh wppconnect-team/wa-version.
+// Versi live terbaru kadang mengubah struktur modul internal (mis. error
+// "Requiring unknown module") sebelum whatsapp-web.js sempat menyesuaikan.
+const KNOWN_GOOD_WEB_VERSION = "2.3000.1042650569-alpha";
+
 const emitter = new EventEmitter();
 
 let io = null;
@@ -63,6 +69,14 @@ const createClient = () => {
         // menyebabkan Chromium hang diam-diam saat sinkronisasi chat besar.
         "--disable-dev-shm-usage",
       ],
+    },
+    // Sumber eksternal dikonfirmasi user: wppconnect-team/wa-version
+    // (raw.githubusercontent.com), mengarsipkan build resmi WhatsApp Web.
+    webVersion: KNOWN_GOOD_WEB_VERSION,
+    webVersionCache: {
+      type: "remote",
+      remotePath:
+        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
     },
   });
 
