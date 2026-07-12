@@ -56,7 +56,13 @@ const createClient = () => {
   const c = new Client({
     authStrategy: new LocalAuth({ clientId: CLIENT_ID }),
     puppeteer: {
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        // /dev/shm sering dibatasi kecil (default ~64MB) di VPS/container,
+        // menyebabkan Chromium hang diam-diam saat sinkronisasi chat besar.
+        "--disable-dev-shm-usage",
+      ],
     },
   });
 
