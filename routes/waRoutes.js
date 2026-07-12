@@ -23,4 +23,7 @@ router.post("/logout", proteksi, logout);
 // Endpoint server-to-server untuk controller lain (mis. ppdbController, agendaController)
 router.post("/kirimpesan", apiKeyProteksi, kirimPesan);
 
+// Endpoint yang sama, untuk dipanggil dari admin panel (login JWT, bukan API key)
+router.post("/kirim", proteksi, kirimPesan);
+
 module.exports = router;
