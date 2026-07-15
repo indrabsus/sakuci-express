@@ -58,6 +58,24 @@ const mapMessage = (message) => ({
   type: message.type,
 });
 
+const teardownClient = async (c, clearSession) => {
+  try {
+    await c.destroy();
+  } catch (err) {
+    console.error("WA: gagal destroy client:", err.message);
+  }
+
+  if (clearSession) {
+    try {
+      await fs.rm(SESSION_DIR, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+    } catch (err) {
+      console.error("WA: gagal membersihkan folder sesi:", err.message);
+    }
+  }
+
+  if (client === c) client = null;
+};
+
 const createClient = () => {
   const c = new Client({
     authStrategy: new LocalAuth({ clientId: CLIENT_ID }),
@@ -113,10 +131,25 @@ const createClient = () => {
   });
 
   c.on("disconnected", (reason) => {
+    // c.logout() (dipanggil dari fungsi logout()) juga memicu event ini secara
+    // internal - kalau logout() sudah lebih dulu menuntaskan teardown-nya
+    // sendiri, client global sudah bukan c lagi. Abaikan supaya tidak
+    // menimpa status "idle" balik jadi "disconnected".
+    if (client !== c) return;
+
     console.log("WA: disconnected -", reason);
     info = null;
     qrDataUrl = null;
     setStatus("disconnected");
+
+    // Tanpa ini, client tidak pernah null lagi setelah disconnect, jadi
+    // ensureInitialized() tidak akan pernah membuat client baru / QR baru
+    // - status akan macet permanen di "disconnected" sampai server direstart.
+    // LOGOUT berarti sesi sudah dicabut dari HP, jadi folder sesi lama
+    // dibersihkan juga supaya scan berikutnya benar-benar mulai bersih.
+    teardownClient(c, reason === "LOGOUT").catch((err) => {
+      console.error("WA: gagal membersihkan sesi setelah disconnect:", err.message);
+    });
   });
 
   c.on("message", (message) => {
@@ -273,29 +306,21 @@ const getMedia = async (chatId, messageId) => {
 const logout = async () => {
   if (!client) return;
 
+  const c = client;
+
   try {
-    await client.logout();
+    await c.logout();
   } catch (err) {
     // whatsapp-web.js's LocalAuth tries to delete the Chrome profile folder
     // immediately after logout, before Chromium fully releases its file
     // locks — this routinely fails with ENOTEMPTY/EBUSY even though the
-    // account was already unlinked successfully. Clean up below instead.
+    // account was already unlinked successfully. teardownClient cleans up
+    // the folder itself afterward regardless of this error.
     console.error("WA logout: sesi terputus tapi gagal hapus folder profil:", err.message);
   }
 
-  try {
-    await client.destroy();
-  } catch {
-    // client may already be torn down by logout(); ignore.
-  }
+  await teardownClient(c, true);
 
-  try {
-    await fs.rm(SESSION_DIR, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
-  } catch (err) {
-    console.error("WA logout: gagal membersihkan folder sesi:", err.message);
-  }
-
-  client = null;
   info = null;
   qrDataUrl = null;
   setStatus("idle");
