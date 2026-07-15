@@ -1,4 +1,4 @@
-const {SiswaPpdb, SiswaBaru, KelasPpdb} = require('../models'); // Pastikan path benar
+const {SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas} = require('../models'); // Pastikan path benar
 const { Op } = require('sequelize');
 
 const dataSiswa = async (req, res) => {
@@ -94,7 +94,7 @@ res.status(200).json({
 
   const masterSiswa = async (req, res) => {
     try {
-      const { tahun, status, search, sort_by, sort_dir } = req.query;
+      const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas } = req.query;
       const page = Math.max(Number(req.query.page) || 1, 1);
       const limit = Math.min(Number(req.query.limit) || 20, 100);
 
@@ -125,16 +125,30 @@ res.status(200).json({
             ]
           : [[SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir]];
 
+      const include = [
+        {
+          model: SiswaBaru,
+          as: 'siswa_baru',
+          required: false,
+          include: [{ model: KelasPpdb, as: 'kelas_ppdb' }],
+        },
+      ];
+
+      // Filter kelas memakai riwayat_kelas (kelas aktual per tahun ajaran),
+      // bukan kelas_ppdb (cuma penempatan awal saat PPDB).
+      if (kelas && tahun_ajaran) {
+        include.push({
+          model: RiwayatKelas,
+          as: 'riwayat_kelas',
+          required: true,
+          where: { tahun_ajaran, nama_kelas: kelas },
+          attributes: [],
+        });
+      }
+
       const { count, rows } = await SiswaPpdb.findAndCountAll({
         where,
-        include: [
-          {
-            model: SiswaBaru,
-            as: 'siswa_baru',
-            required: false,
-            include: [{ model: KelasPpdb, as: 'kelas_ppdb' }],
-          },
-        ],
+        include,
         order,
         limit,
         offset: (page - 1) * limit,
