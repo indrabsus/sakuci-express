@@ -142,6 +142,46 @@ const bayarSpp = async (req, res) => {
       buktiPath = "/uploads/bukti/" + req.file.filename;
     }
 
+    // 🔎 Untuk bulan reguler (1-12), izinkan pembayaran bertahap/cicilan di
+    // bulan yang sama (misal bayar 200rb hari ini, 50rb besok) - tapi total
+    // yang sudah dibayar + pembayaran baru ini tidak boleh melebihi nominal
+    // SPP bulan tersebut (dari master SPP sesuai tahun angkatan & tingkat
+    // siswa saat ini).
+    if (bulan <= 12) {
+      const existingLogs = await LogSpp.findAll({
+        where: { id_siswa, bulan, kelas, status },
+      });
+
+      const totalSudahBayar = existingLogs.reduce(
+        (sum, log) => sum + Number(log.nominal || 0),
+        0
+      );
+
+      const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
+      const master = siswa
+        ? await JsMasterSpp.findOne({ where: { tahun: siswa.tahun } })
+        : null;
+
+      let nominalSppBulan = 0;
+
+      if (master) {
+        const tingkatKelas = String(kelas);
+
+        if (tingkatKelas === "10") nominalSppBulan = Number(master.spp10 || 0);
+        else if (tingkatKelas === "11") nominalSppBulan = Number(master.spp11 || 0);
+        else if (tingkatKelas === "12") nominalSppBulan = Number(master.spp12 || 0);
+      }
+
+      if (nominalSppBulan > 0 && totalSudahBayar + Number(nominal) > nominalSppBulan) {
+        const sisaTagihan = Math.max(nominalSppBulan - totalSudahBayar, 0);
+
+        return res.status(400).json({
+          status: "gagal",
+          message: `Pembayaran melebihi sisa tagihan SPP bulan ini. Sisa tagihan: Rp ${sisaTagihan.toLocaleString("id-ID")}`,
+        });
+      }
+    }
+
     // 🚀 langsung create
     const newSpp = await LogSpp.create({
       id_siswa,
