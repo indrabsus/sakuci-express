@@ -31,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true
     },
     bayar: {
-        type: DataTypes.ENUM('csh', 'trf'),
+        type: DataTypes.ENUM('csh', 'trf', 'sbs'),
         allowNull: true
     },
     created_at: {
