@@ -233,7 +233,11 @@ const getChats = async () => {
     throw new Error("WhatsApp belum terhubung.");
   }
 
-  const chats = await withReadyRetry(() => client.getChats());
+  // Akun dengan banyak riwayat chat bisa perlu waktu jauh lebih lama dari
+  // sekilas dugaan untuk menyelesaikan sinkronisasi setelah event 'ready'
+  // (masih ada request media riwayat berjalan saat percobaan awal gagal
+  // di log production) - beri jauh lebih banyak waktu sebelum menyerah.
+  const chats = await withReadyRetry(() => client.getChats(), 20, 3000);
   return chats.map(mapChat);
 };
 
@@ -242,8 +246,8 @@ const getMessages = async (chatId, limit = 50) => {
     throw new Error("WhatsApp belum terhubung.");
   }
 
-  const chat = await withReadyRetry(() => client.getChatById(chatId));
-  const messages = await withReadyRetry(() => chat.fetchMessages({ limit }));
+  const chat = await withReadyRetry(() => client.getChatById(chatId), 20, 3000);
+  const messages = await withReadyRetry(() => chat.fetchMessages({ limit }), 20, 3000);
 
   // Dinonaktifkan sementara: chat.sendSeen() tampak memicu server WhatsApp
   // memutus sesi (event 'disconnected' - LOGOUT) setiap kali dipanggil,
