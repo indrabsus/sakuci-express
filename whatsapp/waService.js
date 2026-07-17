@@ -7,12 +7,6 @@ const path = require("path");
 const CLIENT_ID = "admin";
 const SESSION_DIR = path.join(process.cwd(), ".wwebjs_auth", `session-${CLIENT_ID}`);
 
-// Versi WhatsApp Web yang diketahui kompatibel dengan whatsapp-web.js,
-// diarsipkan dari build resmi WhatsApp oleh wppconnect-team/wa-version.
-// Versi live terbaru kadang mengubah struktur modul internal (mis. error
-// "Requiring unknown module") sebelum whatsapp-web.js sempat menyesuaikan.
-const KNOWN_GOOD_WEB_VERSION = "2.3000.1042650569-alpha";
-
 const emitter = new EventEmitter();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,14 +104,11 @@ const createClient = () => {
         "--disable-dev-shm-usage",
       ],
     },
-    // Sumber eksternal dikonfirmasi user: wppconnect-team/wa-version
-    // (raw.githubusercontent.com), mengarsipkan build resmi WhatsApp Web.
-    webVersion: KNOWN_GOOD_WEB_VERSION,
-    webVersionCache: {
-      type: "remote",
-      remotePath:
-        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
-    },
+    // Kunci versi WhatsApp Web dilepas: whatsapp-web.js 1.34.7 melakukan
+    // refactor besar ("remove all mentions of window.Store") yang tampaknya
+    // mengharuskan build WhatsApp Web yang lebih baru dari versi yang tadi
+    // dikunci - error "r" di getChats() konsisten dengan module lookup yang
+    // tidak ada di versi lama. Pakai default whatsapp-web.js (live version).
   });
 
   c.on("qr", async (qr) => {
@@ -250,10 +241,9 @@ const getMessages = async (chatId, limit = 50) => {
   const messages = await withReadyRetry(() => chat.fetchMessages({ limit }), 20, 3000);
 
   // Dinonaktifkan sementara: chat.sendSeen() tampak memicu server WhatsApp
-  // memutus sesi (event 'disconnected' - LOGOUT) setiap kali dipanggil,
-  // kemungkinan tidak kompatibel dengan versi WhatsApp Web yang dikunci
-  // (KNOWN_GOOD_WEB_VERSION). Badge belum-dibaca sementara tidak akan
-  // ter-reset otomatis di sisi WhatsApp sampai ini diselidiki lebih lanjut.
+  // memutus sesi (event 'disconnected' - LOGOUT) setiap kali dipanggil.
+  // Badge belum-dibaca sementara tidak akan ter-reset otomatis di sisi
+  // WhatsApp sampai ini diselidiki lebih lanjut.
   // await chat.sendSeen();
 
   return messages.map(mapMessage);
