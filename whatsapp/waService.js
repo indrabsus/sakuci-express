@@ -15,6 +15,28 @@ const KNOWN_GOOD_WEB_VERSION = "2.3000.1042650569-alpha";
 
 const emitter = new EventEmitter();
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Sesaat setelah event 'ready', WhatsApp Web kadang belum selesai memuat
+// Store chat-nya di dalam browser (masih sinkronisasi riwayat di
+// background) - memanggil client.getChats()/getChatById() di jendela ini
+// bisa gagal dengan error internal yang aneh (mis. pesan cuma satu huruf).
+// Retry singkat biasanya cukup karena ini soal timing, bukan gagal permanen.
+const withReadyRetry = async (fn, attempts = 4, delayMs = 1500) => {
+  let lastErr;
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await sleep(delayMs);
+    }
+  }
+
+  throw lastErr;
+};
+
 let io = null;
 let client = null;
 let status = "idle"; // idle | loading | qr | authenticated | ready | disconnected
@@ -211,7 +233,7 @@ const getChats = async () => {
     throw new Error("WhatsApp belum terhubung.");
   }
 
-  const chats = await client.getChats();
+  const chats = await withReadyRetry(() => client.getChats());
   return chats.map(mapChat);
 };
 
@@ -220,8 +242,8 @@ const getMessages = async (chatId, limit = 50) => {
     throw new Error("WhatsApp belum terhubung.");
   }
 
-  const chat = await client.getChatById(chatId);
-  const messages = await chat.fetchMessages({ limit });
+  const chat = await withReadyRetry(() => client.getChatById(chatId));
+  const messages = await withReadyRetry(() => chat.fetchMessages({ limit }));
 
   // Dinonaktifkan sementara: chat.sendSeen() tampak memicu server WhatsApp
   // memutus sesi (event 'disconnected' - LOGOUT) setiap kali dipanggil,
