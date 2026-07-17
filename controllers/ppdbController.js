@@ -1,6 +1,7 @@
 const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = require('../models'); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
+const waService = require('../whatsapp/waService');
 const moment = require('moment');
 const fs = require("fs");
 const path = require("path");
@@ -497,16 +498,16 @@ const trfServer = async (req, res) => {
   
       // Kirim pesan notifikasi
       try {
-        const kirimpesan = await axios.post(process.env.API_WA, {
-          nomor: no_hpFormatted,
-          pesan: `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
+        const kirimpesan = await waService.sendMessageToNumber(
+          no_hpFormatted,
+          `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
 
     Untuk tahap selanjutnya dipersilahkan untuk hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi untuk melakukan registrasi secara langsung dan menyelesaikan seluruh pembiayaan SPMB. Dikarenakan saat ini kuota yang tersedia semakin menipis imbas dari banyaknya pendaftar yang hadir setelah pengumuman penerimaan  Sekolah Negeri.
 
-Terima Kasih 
+Terima Kasih
 Panitia SPMB SMK Sangkuriang 1 Cimahi
-`,
-        });
+`
+        );
       const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted} | Status : ${server_number}`;
       const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
       } catch (notifError) {

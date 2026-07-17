@@ -3,6 +3,7 @@ const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan,
   User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb, Jadwal} = require('../models');
 const moment = require('moment-timezone');
 const axios = require("axios");
+const waService = require('../whatsapp/waService');
 
 const dataAgenda = async (req, res) => {
   try {
@@ -358,13 +359,13 @@ const createAgenda = async (req, res) => {
     if (nomorTujuan) {
       (async () => {
         try {
-          const waRes = await axios.post(`${process.env.API_WA}`, {
-            nomor: nomorTujuan,
-            pesan: `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`,
-          });
-          console.log("WA Response:", waRes.data);
+          const waRes = await waService.sendMessageToNumber(
+            nomorTujuan,
+            `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`
+          );
+          console.log("WA Response:", waRes);
         } catch (waError) {
-          console.error("Gagal kirim WA:", waError.response?.data || waError.message);
+          console.error("Gagal kirim WA:", waError.message);
         }
       })();
     }
