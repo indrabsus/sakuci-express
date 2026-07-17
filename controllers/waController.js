@@ -10,6 +10,7 @@ const getChats = async (req, res) => {
     const chats = await waService.getChats();
     res.json({ status: "success", data: chats });
   } catch (error) {
+    console.error("WA getChats error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
@@ -21,6 +22,7 @@ const getMessages = async (req, res) => {
     const messages = await waService.getMessages(chatId, limit);
     res.json({ status: "success", data: messages });
   } catch (error) {
+    console.error("WA getMessages error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
@@ -37,6 +39,7 @@ const sendMessage = async (req, res) => {
     const message = await waService.sendMessage(chatId, body);
     res.json({ status: "success", data: message });
   } catch (error) {
+    console.error("WA sendMessage error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
@@ -52,6 +55,7 @@ const kirimPesan = async (req, res) => {
     const message = await waService.sendMessageToNumber(nomor, pesan);
     res.json({ status: "success", data: message });
   } catch (error) {
+    console.error("WA kirimPesan error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
@@ -62,6 +66,7 @@ const getMedia = async (req, res) => {
     const media = await waService.getMedia(chatId, messageId);
     res.json({ status: "success", data: media });
   } catch (error) {
+    console.error("WA getMedia error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
@@ -71,6 +76,7 @@ const logout = async (req, res) => {
     await waService.logout();
     res.json({ status: "success", message: "WhatsApp berhasil diputuskan." });
   } catch (error) {
+    console.error("WA logout error:", error.message);
     res.status(400).json({ status: "error", message: error.message });
   }
 };
