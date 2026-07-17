@@ -222,7 +222,14 @@ const getMessages = async (chatId, limit = 50) => {
 
   const chat = await client.getChatById(chatId);
   const messages = await chat.fetchMessages({ limit });
-  await chat.sendSeen();
+
+  // Dinonaktifkan sementara: chat.sendSeen() tampak memicu server WhatsApp
+  // memutus sesi (event 'disconnected' - LOGOUT) setiap kali dipanggil,
+  // kemungkinan tidak kompatibel dengan versi WhatsApp Web yang dikunci
+  // (KNOWN_GOOD_WEB_VERSION). Badge belum-dibaca sementara tidak akan
+  // ter-reset otomatis di sisi WhatsApp sampai ini diselidiki lebih lanjut.
+  // await chat.sendSeen();
+
   return messages.map(mapMessage);
 };
 
