@@ -543,6 +543,7 @@ Panitia SPMB SMK Sangkuriang 1 Cimahi
         minat_jurusan1,
         minat_jurusan2,
         no_hp,
+        no_hp_ortu,
         status,
         id_siswa
   } = req.body;
@@ -563,6 +564,7 @@ Panitia SPMB SMK Sangkuriang 1 Cimahi
         minat_jurusan1,
         minat_jurusan2,
         no_hp,
+        no_hp_ortu,
         status },
       { where: { id_siswa } }
     );
