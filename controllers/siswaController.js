@@ -96,7 +96,7 @@ res.status(200).json({
     try {
       const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas, tingkat, belum_kelas } = req.query;
       const page = Math.max(Number(req.query.page) || 1, 1);
-      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const limit = Math.min(Number(req.query.limit) || 20, 1000);
 
       const where = {};
 
