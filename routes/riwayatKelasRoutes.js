@@ -8,6 +8,7 @@ const {
   daftarKelasByTahun,
   createRiwayat,
   naikKelas,
+  pindahKelas,
   deleteRiwayat,
   tahunAjaranAktif,
   belumMasukKelas,
@@ -24,6 +25,7 @@ router.get('/terkini/:id_siswa', proteksi, kelasTerkini);
 router.get('/tahun', proteksi, riwayatByTahun);
 router.post('/', proteksi, createRiwayat);
 router.post('/naik-kelas', proteksi, naikKelas);
+router.post('/pindah', proteksi, pindahKelas);
 router.delete('/:id_riwayat', proteksi, deleteRiwayat);
 
 module.exports = router;

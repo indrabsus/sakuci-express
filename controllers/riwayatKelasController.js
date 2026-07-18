@@ -222,6 +222,46 @@ const naikKelas = async (req, res) => {
   }
 };
 
+const pindahKelas = async (req, res) => {
+  const { id_siswa, tahun_ajaran, tingkat, nama_kelas } = req.body;
+
+  if (!id_siswa || !tahun_ajaran || !tingkat || !nama_kelas) {
+    return res.status(400).json({
+      status: "error",
+      message: "id_siswa, tahun_ajaran, tingkat, dan nama_kelas wajib diisi.",
+    });
+  }
+
+  try {
+    // Pindah kelas = createRiwayat tapi upsert: kalau siswa sudah punya
+    // riwayat untuk tahun ajaran ini, kelasnya diganti; kalau belum, dibuatkan
+    // baru - jadi satu endpoint ini bisa dipakai baik untuk memindah kelas di
+    // tahun ajaran yang sama maupun memasukkan ke tahun ajaran lain.
+    const [riwayat, created] = await RiwayatKelas.findOrCreate({
+      where: { id_siswa, tahun_ajaran },
+      defaults: { tingkat, nama_kelas },
+    });
+
+    if (!created) {
+      await riwayat.update({ tingkat, nama_kelas });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: created
+        ? "Siswa berhasil dimasukkan ke kelas."
+        : "Siswa berhasil dipindahkan ke kelas baru.",
+      data: riwayat,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      message: "Gagal memindahkan kelas siswa.",
+      error: error.message,
+    });
+  }
+};
+
 const deleteRiwayat = async (req, res) => {
   const { id_riwayat } = req.params;
 
@@ -349,6 +389,7 @@ module.exports = {
   daftarKelasByTahun,
   createRiwayat,
   naikKelas,
+  pindahKelas,
   deleteRiwayat,
   tahunAjaranAktif,
   belumMasukKelas,

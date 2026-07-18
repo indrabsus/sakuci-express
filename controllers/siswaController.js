@@ -94,7 +94,7 @@ res.status(200).json({
 
   const masterSiswa = async (req, res) => {
     try {
-      const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas } = req.query;
+      const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas, tingkat } = req.query;
       const page = Math.max(Number(req.query.page) || 1, 1);
       const limit = Math.min(Number(req.query.limit) || 20, 100);
 
@@ -134,15 +134,24 @@ res.status(200).json({
         },
       ];
 
-      // Filter kelas memakai riwayat_kelas (kelas aktual per tahun ajaran),
-      // bukan kelas_ppdb (cuma penempatan awal saat PPDB).
-      if (kelas && tahun_ajaran) {
+      // riwayat_kelas dipakai untuk menampilkan kelas aktual siswa (per tahun
+      // ajaran terpilih) di kolom Kelas, bukan kelas_ppdb (cuma penempatan
+      // awal saat PPDB). Filter kelas memakai data yang sama - required cuma
+      // dipaksa true (jadi INNER JOIN yang menyaring baris) kalau kelas juga
+      // dipilih, supaya menampilkan tanpa memfilter tetap bisa dipakai sendiri.
+      // tingkat disertakan karena nama_kelas bisa dipakai ulang di tingkat
+      // berbeda (mis. "MPLB 1" ada di tingkat 11 dan 12) - tanpa itu filter
+      // kelas bisa menyatukan siswa dari dua kelas yang sebenarnya berbeda.
+      if (tahun_ajaran) {
+        const riwayatWhere = { tahun_ajaran };
+        if (kelas) riwayatWhere.nama_kelas = kelas;
+        if (tingkat) riwayatWhere.tingkat = tingkat;
+
         include.push({
           model: RiwayatKelas,
           as: 'riwayat_kelas',
-          required: true,
-          where: { tahun_ajaran, nama_kelas: kelas },
-          attributes: [],
+          required: !!kelas,
+          where: riwayatWhere,
         });
       }
 
