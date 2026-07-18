@@ -792,6 +792,8 @@ const dataSiswa = async (req, res) => {
         "nama_lengkap",
         "tahun",
         "status",
+        "no_hp",
+        "no_hp_ortu",
       ],
 
       where: {
