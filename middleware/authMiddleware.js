@@ -15,7 +15,7 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded; // Menyimpan data user dari token ke request
     next(); // Melanjutkan ke route berikutnya
   } catch (error) {
-    return res.status(400).json({ message: 'Invalid Token.' });
+    return res.status(401).json({ message: 'Invalid Token.' });
   }
 };
 
