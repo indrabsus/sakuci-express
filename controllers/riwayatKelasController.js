@@ -1,31 +1,18 @@
-const { RiwayatKelas, SiswaPpdb, KelasTahun } = require("../models");
+const { RiwayatKelas, SiswaPpdb } = require("../models");
 const { fn, col, Op, literal } = require("sequelize");
 
 const daftarTahunAjaran = async (req, res) => {
   try {
-    // kelas_tahun disertakan supaya tahun ajaran yang baru dibuat (lewat
-    // "Tambah Tahun Ajaran" / kelas kosong) tetap muncul walau belum ada
-    // satu pun siswa yang masuk riwayat_kelas untuk tahun itu.
-    const [riwayatRows, kelasTahunRows] = await Promise.all([
-      RiwayatKelas.findAll({
-        attributes: [[fn("DISTINCT", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      }),
-      KelasTahun.findAll({
-        attributes: [[fn("DISTINCT", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      }),
-    ]);
-
-    const tahunSet = new Set([
-      ...riwayatRows.map((row) => row.tahun_ajaran),
-      ...kelasTahunRows.map((row) => row.tahun_ajaran),
-    ]);
+    const rows = await RiwayatKelas.findAll({
+      attributes: [[fn("DISTINCT", col("tahun_ajaran")), "tahun_ajaran"]],
+      order: [["tahun_ajaran", "DESC"]],
+      raw: true,
+    });
 
     return res.status(200).json({
       status: "success",
       message: "Daftar tahun ajaran berhasil diambil.",
-      data: Array.from(tahunSet).sort().reverse(),
+      data: rows.map((row) => row.tahun_ajaran),
     });
   } catch (error) {
     return res.status(500).json({
@@ -38,25 +25,16 @@ const daftarTahunAjaran = async (req, res) => {
 
 const tahunAjaranAktif = async (req, res) => {
   try {
-    const [riwayatResult, kelasTahunResult] = await Promise.all([
-      RiwayatKelas.findOne({
-        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      }),
-      KelasTahun.findOne({
-        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      }),
-    ]);
-
-    const kandidat = [riwayatResult?.tahun_ajaran, kelasTahunResult?.tahun_ajaran].filter(Boolean);
-    const tahunAktif = kandidat.length ? kandidat.sort().reverse()[0] : null;
+    const result = await RiwayatKelas.findOne({
+      attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
+      raw: true,
+    });
 
     return res.status(200).json({
       status: "success",
       message: "Tahun ajaran aktif berhasil diambil.",
       data: {
-        tahun_ajaran: tahunAktif,
+        tahun_ajaran: result?.tahun_ajaran || null,
       },
     });
   } catch (error) {
@@ -321,31 +299,12 @@ const daftarKelasByTahun = async (req, res) => {
   }
 
   try {
-    // kelas_tahun disertakan supaya kelas yang dibuat kosong (belum ada
-    // siswa sama sekali, jadi tidak muncul di riwayat_kelas) tetap terlihat
-    // di daftar kelas.
-    const [riwayatRows, kelasTahunRows] = await Promise.all([
-      RiwayatKelas.findAll({
-        attributes: ["tingkat", "nama_kelas"],
-        where: { tahun_ajaran },
-        group: ["tingkat", "nama_kelas"],
-        raw: true,
-      }),
-      KelasTahun.findAll({
-        attributes: ["tingkat", "nama_kelas"],
-        where: { tahun_ajaran },
-        raw: true,
-      }),
-    ]);
-
-    const merged = new Map();
-    [...riwayatRows, ...kelasTahunRows].forEach((row) => {
-      merged.set(`${row.tingkat}|${row.nama_kelas}`, row);
-    });
-
-    const rows = Array.from(merged.values()).sort((a, b) => {
-      if (a.tingkat !== b.tingkat) return String(a.tingkat).localeCompare(String(b.tingkat));
-      return String(a.nama_kelas).localeCompare(String(b.nama_kelas));
+    const rows = await RiwayatKelas.findAll({
+      attributes: ["tingkat", "nama_kelas"],
+      where: { tahun_ajaran },
+      group: ["tingkat", "nama_kelas"],
+      order: [["tingkat", "ASC"], ["nama_kelas", "ASC"]],
+      raw: true,
     });
 
     return res.status(200).json({
@@ -357,38 +316,6 @@ const daftarKelasByTahun = async (req, res) => {
     return res.status(500).json({
       status: "error",
       message: "Gagal mengambil daftar kelas.",
-      error: error.message,
-    });
-  }
-};
-
-const buatKelas = async (req, res) => {
-  const { tahun_ajaran, tingkat, nama_kelas } = req.body;
-
-  if (!tahun_ajaran || !tingkat || !nama_kelas) {
-    return res.status(400).json({
-      status: "error",
-      message: "tahun_ajaran, tingkat, dan nama_kelas wajib diisi.",
-    });
-  }
-
-  try {
-    // findOrCreate supaya idempoten - kalau kelas ini kebetulan sudah ada
-    // (baik di kelas_tahun maupun sudah punya siswa di riwayat_kelas),
-    // permintaan ulang tidak menghasilkan error atau duplikat.
-    const [kelas] = await KelasTahun.findOrCreate({
-      where: { tahun_ajaran, tingkat, nama_kelas },
-    });
-
-    return res.status(200).json({
-      status: "success",
-      message: "Kelas berhasil dibuat.",
-      data: kelas,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal membuat kelas.",
       error: error.message,
     });
   }
@@ -460,7 +387,6 @@ module.exports = {
   riwayatByTahun,
   daftarTahunAjaran,
   daftarKelasByTahun,
-  buatKelas,
   createRiwayat,
   naikKelas,
   pindahKelas,
