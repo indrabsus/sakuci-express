@@ -1,5 +1,5 @@
 const {SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas} = require('../models'); // Pastikan path benar
-const { Op } = require('sequelize');
+const { Op, literal } = require('sequelize');
 
 const dataSiswa = async (req, res) => {
     try {
@@ -94,7 +94,7 @@ res.status(200).json({
 
   const masterSiswa = async (req, res) => {
     try {
-      const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas, tingkat } = req.query;
+      const { tahun, status, search, sort_by, sort_dir, tahun_ajaran, kelas, tingkat, belum_kelas } = req.query;
       const page = Math.max(Number(req.query.page) || 1, 1);
       const limit = Math.min(Number(req.query.limit) || 20, 100);
 
@@ -109,6 +109,17 @@ res.status(200).json({
           { nisn: { [Op.like]: `%${search}%` } },
           { username: { [Op.like]: `%${search}%` } },
         ];
+      }
+
+      // Filter "belum ada kelas": siswa yang belum punya riwayat_kelas sama
+      // sekali untuk tahun ajaran ini - dicek via subquery karena ini soal
+      // ketiadaan baris, bukan sesuatu yang bisa difilter lewat include.
+      if (belum_kelas === '1' && tahun_ajaran) {
+        where.id_siswa = {
+          [Op.notIn]: literal(
+            `(SELECT id_siswa FROM riwayat_kelas WHERE tahun_ajaran = ${SiswaPpdb.sequelize.escape(tahun_ajaran)})`
+          ),
+        };
       }
 
       const dir = String(sort_dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
