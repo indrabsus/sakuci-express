@@ -74,6 +74,84 @@ const mapMessage = (message) => ({
   type: message.type,
 });
 
+const HOTLINE_ADMIN_NO = "081380837591";
+
+const HOTLINE_KATEGORI = {
+  "1": "Siswa",
+  "2": "Guru",
+  "3": "Orang Tua Siswa",
+  "4": "Umum",
+  "5": "PPDB",
+};
+
+const HOTLINE_GREETING_REGEX = /^(hai|hallo|halo|assalamualaikum|assalamu'alaikum|sampurasun)[\s!.,]*$/i;
+
+const hotlineSessions = {};
+
+const handleHotlineMessage = async (message) => {
+  if (message.fromMe || message.from.endsWith("@g.us")) return;
+
+  const chatId = message.from;
+  const pesan = (message.body || "").trim();
+  const session = hotlineSessions[chatId];
+
+  if (!session) {
+    if (HOTLINE_GREETING_REGEX.test(pesan)) {
+      hotlineSessions[chatId] = { step: "pilih_kategori", data: {} };
+      await message.reply(
+        "Selamat Datang di Hotline SMK Sangkuriang 1 Cimahi, sebelum melanjutkan ketahap selanjutnya, silakan pilih anda sebagai :\n" +
+        "1. Siswa\n2. Guru\n3. Orang Tua Siswa\n4. Umum\n5. PPDB\n\n" +
+        "Balas pesan dengan ketik no nya saja misalkan 5 untuk informasi PPDB"
+      );
+    }
+    return;
+  }
+
+  if (session.step === "pilih_kategori") {
+    const kategori = HOTLINE_KATEGORI[pesan];
+    if (!kategori) {
+      await message.reply("Pilihan tidak valid. Silakan balas dengan angka 1-5.");
+      return;
+    }
+    session.data.kategori = kategori;
+    session.step = "input_nama";
+    await message.reply(
+      pesan === "1" ? "Silakan tuliskan Nama dan Kelas Anda" : "Silakan tuliskan Nama Anda"
+    );
+    return;
+  }
+
+  if (session.step === "input_nama") {
+    session.data.nama = pesan;
+    session.step = "input_no_wa";
+    await message.reply("Silakan masukan No WA aktif");
+    return;
+  }
+
+  if (session.step === "input_no_wa") {
+    session.data.no_wa = pesan;
+    session.step = "input_pesan";
+    await message.reply("Silakan masukan Pesan/Kritik/Saran :");
+    return;
+  }
+
+  if (session.step === "input_pesan") {
+    session.data.pesan = pesan;
+
+    const teks = `${session.data.kategori}\nNama : ${session.data.nama}\nPesan : ${session.data.pesan}\nNo Wa : ${session.data.no_wa}`;
+
+    delete hotlineSessions[chatId];
+
+    try {
+      await client.sendMessage(`${formatNoHp(HOTLINE_ADMIN_NO)}@c.us`, teks);
+    } catch (err) {
+      console.error("WA hotline: gagal kirim ke admin:", err.message);
+    }
+
+    await message.reply("Terima Kasih sudah menggunakan Hotline SMK Sangkuriang 1 Cimahi");
+  }
+};
+
 const teardownClient = async (c, clearSession) => {
   try {
     await c.destroy();
@@ -167,6 +245,9 @@ const createClient = () => {
 
   c.on("message", (message) => {
     broadcast("message", mapMessage(message));
+    handleHotlineMessage(message).catch((err) => {
+      console.error("WA hotline error:", err.message);
+    });
   });
 
   c.on("message_create", (message) => {
