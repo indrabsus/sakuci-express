@@ -124,6 +124,11 @@ res.status(200).json({
 
       const dir = String(sort_dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
+      // id_siswa disertakan sebagai tie-breaker kedua di semua mode sort -
+      // tanpa ini, baris-baris yang "seri" di kolom sort utama (mis. ratusan
+      // siswa yang sama-sama belum punya kelas_ppdb/NULL) bisa kembali dalam
+      // urutan berbeda-beda tiap query, membuat hasil per halaman
+      // tumpang-tindih/hilang saat di-paging (LIMIT/OFFSET jadi tidak stabil).
       const order =
         sort_by === 'kelas_ppdb'
           ? [
@@ -133,8 +138,12 @@ res.status(200).json({
                 'nama_kelas',
                 dir,
               ],
+              ['id_siswa', 'ASC'],
             ]
-          : [[SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir]];
+          : [
+              [SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir],
+              ['id_siswa', 'ASC'],
+            ];
 
       const include = [
         {
@@ -173,6 +182,14 @@ res.status(200).json({
         limit,
         offset: (page - 1) * limit,
         distinct: true,
+        // Sequelize secara default membungkus query dalam subquery supaya
+        // LIMIT/OFFSET benar saat ada include - tapi subquery itu tidak ikut
+        // memakai ORDER BY yang mengacu ke kolom dari include bertingkat
+        // (siswa_baru -> kelas_ppdb), jadi baris yang muncul per halaman jadi
+        // salah/duplikat. Aman dimatikan karena semua include di sini
+        // (siswa_baru, riwayat_kelas per tahun_ajaran) paling banyak 1 baris
+        // per siswa, jadi tidak ada risiko duplikasi dari JOIN.
+        subQuery: false,
       });
 
       res.status(200).json({
