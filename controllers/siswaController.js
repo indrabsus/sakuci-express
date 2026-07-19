@@ -125,7 +125,7 @@ res.status(200).json({
       const dir = String(sort_dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
       const order =
-        sort_by === 'kelas'
+        sort_by === 'kelas_ppdb'
           ? [
               [
                 { model: SiswaBaru, as: 'siswa_baru' },
