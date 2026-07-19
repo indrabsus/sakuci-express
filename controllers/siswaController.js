@@ -129,21 +129,32 @@ res.status(200).json({
       // siswa yang sama-sama belum punya kelas_ppdb/NULL) bisa kembali dalam
       // urutan berbeda-beda tiap query, membuat hasil per halaman
       // tumpang-tindih/hilang saat di-paging (LIMIT/OFFSET jadi tidak stabil).
-      const order =
-        sort_by === 'kelas_ppdb'
-          ? [
-              [
-                { model: SiswaBaru, as: 'siswa_baru' },
-                { model: KelasPpdb, as: 'kelas_ppdb' },
-                'nama_kelas',
-                dir,
-              ],
-              ['id_siswa', 'ASC'],
-            ]
-          : [
-              [SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir],
-              ['id_siswa', 'ASC'],
-            ];
+      let order;
+
+      if (sort_by === 'kelas_ppdb') {
+        order = [
+          [
+            { model: SiswaBaru, as: 'siswa_baru' },
+            { model: KelasPpdb, as: 'kelas_ppdb' },
+            'nama_kelas',
+            dir,
+          ],
+          ['id_siswa', 'ASC'],
+        ];
+      } else if (sort_by === 'kelas' && tahun_ajaran) {
+        // Hanya valid kalau tahun_ajaran dipilih, karena include riwayat_kelas
+        // di bawah cuma dipasang saat itu - tanpa tahun_ajaran kolom Kelas
+        // selalu "-" untuk semua baris jadi tidak ada gunanya diurutkan.
+        order = [
+          [{ model: RiwayatKelas, as: 'riwayat_kelas' }, 'nama_kelas', dir],
+          ['id_siswa', 'ASC'],
+        ];
+      } else {
+        order = [
+          [SORTABLE_COLUMNS[sort_by] || 'nama_lengkap', dir],
+          ['id_siswa', 'ASC'],
+        ];
+      }
 
       const include = [
         {
