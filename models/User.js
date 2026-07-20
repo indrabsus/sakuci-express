@@ -45,8 +45,6 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = (models) => {
     User.belongsTo(models.Role, { foreignKey: 'id_role', as: 'role' });
-    User.hasMany(models.Kelas, { foreignKey: 'id_user', as: 'kelas' });
-    User.hasMany(models.DataSiswa, { foreignKey: 'id_user', as: 'data_siswa' });
     User.hasMany(models.MapelKelas, { foreignKey: 'id_user', as: 'mapel_kelas' });
     User.hasMany(models.Absen, { foreignKey: 'id_user', as: 'absen' });
     User.hasOne(models.DataUser, { foreignKey: "id_user" });

@@ -1,9 +1,7 @@
-const {SiswaPpdb, LogPpdb, KelasPpdb, SiswaBaru, LogSpp, DataUser, AbsenHarianSiswa, User, MataPelajaran,
-  Agenda, AbsenSiswa, Nilai, Dokumen, Role
+const {SiswaPpdb, LogPpdb, KelasPpdb, SiswaBaru, LogSpp, DataUser, AbsenHarianSiswa, User,
+  AbsenSiswa
 } = require('../models'); // Pastikan path benar
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const fs = require("fs");
-const path = require("path");
 const bcrypt = require('bcrypt');
 
 const detailSiswa = async (req, res) => {
@@ -38,97 +36,6 @@ const detailSiswa = async (req, res) => {
     }
 };
 
-const detailUser = async (req, res) => {
-    try {
-        const { id_user } = req.params;
-
-        const user = await DataUser.findOne({
-            where: { id_user },
-        });
-
-        console.log("Hasil pencarian:", user);
-
-        if (!user) {
-            return res.status(404).json({
-                status: "error",
-                message: "User tidak ditemukan.",
-                data: null,
-            });
-        }
-
-        res.status(200).json({
-            status: "success",
-            message: "Data user berhasil diambil.",
-            data: user,
-        });
-    } catch (error) {
-        console.error("Error saat mengambil data user:", error);
-        res.status(500).json({
-            status: "error",
-            message: "Gagal mengambil data siswa.",
-            error: error.message,
-        });
-    }
-};
-
-const updateSiswa = async (req, res) => {
-  try {
-    const { id_siswa } = req.params;
-    let { no_rfid, ...updateData } = req.body;
-
-    // Cek apakah siswa dengan id_siswa ini ada
-    const siswa = await SiswaPpdb.findOne({ where: { id_siswa } });
-
-    if (!siswa) {
-      return res.status(404).json({
-        status: "error",
-        message: "Siswa tidak ditemukan.",
-        data: null,
-      });
-    }
-
-    // Jika no_rfid dikirim dan bernilai "0", ubah jadi null
-    if (no_rfid === "0" || no_rfid === 0) {
-      no_rfid = null;
-    }
-
-    // Jika no_rfid dikirim dan bukan null, cek apakah sudah digunakan oleh siswa lain
-    if (no_rfid) {
-      const duplikat = await SiswaPpdb.findOne({
-        where: {
-          no_rfid,
-          id_siswa: { [Op.ne]: id_siswa }, // pastikan bukan siswa yang sama
-        },
-      });
-
-      if (duplikat) {
-        return res.status(400).json({
-          status: "error",
-          message: `Nomor RFID ${no_rfid} sudah digunakan oleh siswa lain.`,
-        });
-      }
-    }
-
-    // Masukkan no_rfid (baik null atau value baru) ke updateData
-    updateData.no_rfid = no_rfid;
-
-    // Lakukan update data siswa
-    await siswa.update(updateData);
-
-    res.status(200).json({
-      status: "success",
-      message: "Data siswa berhasil diperbarui.",
-      data: siswa,
-    });
-  } catch (error) {
-    console.error("Error saat update data siswa:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Gagal update data siswa.",
-      error: error.message,
-    });
-  }
-};
 const updateUser = async (req, res) => {
   try {
     const { id_data } = req.params;
@@ -183,17 +90,6 @@ const dataSiswa = async (req, res) => {
         { model: AbsenSiswa, as: "absen_siswa" },
 
         {
-          model: Nilai,
-          as: "nilai",
-          include: [
-            {
-              model: Agenda,
-              as: "agenda",
-            },
-          ],
-        },
-
-        {
           model: SiswaBaru,
           as: "siswa_baru",
           required: true,
@@ -233,46 +129,6 @@ const dataSiswa = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Gagal mengambil data siswa.",
-      error: error.message,
-    });
-  }
-};
-
-const dataUser = async (req, res) => {
-  try {
-    const { id_data } = req.params;
-
-    let data;
-
-    if (id_data) {
-      // Cari satu user spesifik
-      data = await DataUser.findOne({
-        include: [
-          { model: User, as: "user" },
-          { model: Agenda, as: "agenda" }
-        ],
-        where: { id_data },
-      });
-    } else {
-      // Ambil semua user sesuai role
-      data = await DataUser.findAll({
-        include: [
-          { model: User, as: "user" },
-          { model: Agenda, as: "agenda" }
-        ],
-        order: [["uid_fp", "ASC"]],
-      });
-    }
-
-    res.status(200).json({
-      status: "success",
-      message: "Data berhasil diambil!",
-      data,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil data.",
       error: error.message,
     });
   }
@@ -321,44 +177,6 @@ const dataTendik = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Gagal mengambil data.",
-      error: error.message,
-    });
-  }
-};
-
-const dataUserFp = async (req, res) => {
-  try {
-    const { uid_fp } = req.params;
-
-    let data;
-
-    if (uid_fp) {
-      // Cari satu user spesifik
-      data = await DataUser.findOne({
-        include: [
-          { model: User, as: "user" },
-        ],
-        where: { uid_fp },
-      });
-    } else {
-      // Ambil semua user sesuai role
-      data = await DataUser.findAll({
-        include: [
-          { model: User, as: "user" },
-        ],
-        order: [["uid_fp", "ASC"]],
-      });
-    }
-
-    res.status(200).json({
-      status: "success",
-      message: "Data berhasil diambil!",
-      data,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil data siswa.",
       error: error.message,
     });
   }
@@ -452,26 +270,6 @@ function normalizePhone(no_hp) {
   return clean;
 }
 
-const dataMapel = async (req, res) => {
-  try {
-    const { id_mapel } = req.params;
-
-    const data = await MataPelajaran.findAll();
-
-    res.status(200).json({
-      status: "success",
-      message: "Data berhasil diambil!",
-      data: data,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil data siswa.",
-      error: error.message,
-    });
-  }
-};
-
 const deleteUser = async (req, res) => {
     const { id_user } = req.params;
 
@@ -499,214 +297,7 @@ const deleteUser = async (req, res) => {
         });
     }
 };
-const deleteSiswa = async (req, res) => {
-    const { id_siswa } = req.params;
-
-    try {
-        const data = await SiswaPpdb.findByPk(id_siswa);
-
-        if (!data) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'data tidak ditemukan!'
-            });
-        }
-
-        await data.destroy();
-
-        res.status(200).json({
-            status: 'success',
-            message: 'berhasil menghapus data!'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'gagal',
-            message: 'gagal menghapus data!',
-            error: error.message
-        });
-    }
-};
-
-const hitungAbsen = async (req, res) => {
-  try {
-    const { id_siswa, id_data, id_mapel, bulan, tahun } = req.params;
-
-    // Siapkan kondisi dinamis untuk include (Agenda)
-    const agendaWhere = {};
-    if (id_data) agendaWhere.id_data = id_data;
-    if (id_mapel) agendaWhere.id_mapel = id_mapel;
-
-    // Siapkan include hanya jika ada filter id_data atau id_mapel
-    const include = Object.keys(agendaWhere).length
-      ? [{ model: Agenda, as: "agenda", where: agendaWhere }]
-      : [{ model: Agenda, as: "agenda" }];
-
-    // Ambil semua data absen berdasarkan id_siswa
-    const absenList = await AbsenSiswa.findAll({
-      include,
-      where: { id_siswa },
-      raw: true,
-    });
-
-    const summary = { s: 0, i: 0, a: 0, t: 0, d: 0 };
-    const dayStatus = new Map();
-
-    absenList.forEach((item) => {
-      if (!item.created_at || !item.keterangan) return;
-
-      // Konversi waktu ke lokal (GMT+7)
-      const localDate = new Date(new Date(item.created_at).getTime() + 7 * 60 * 60 * 1000);
-      const y = localDate.getFullYear();
-      const m = localDate.getMonth() + 1;
-
-      // Jika bulan & tahun diberikan, baru filter
-      if (
-        (!tahun || y === parseInt(tahun)) &&
-        (!bulan || m === parseInt(bulan))
-      ) {
-        const dateKey = localDate.toISOString().split("T")[0];
-        if (!dayStatus.has(dateKey)) {
-          dayStatus.set(dateKey, item.keterangan.toLowerCase().trim());
-        }
-      }
-    });
-
-    // Hitung jumlah per status
-    for (const status of dayStatus.values()) {
-      if (summary[status] !== undefined) {
-        summary[status]++;
-      }
-    }
-
-    return res.status(200).json(summary);
-  } catch (error) {
-    console.error("Error hitungAbsen:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Terjadi kesalahan pada server",
-      error: error.message,
-    });
-  }
-};
-
-const dokumenData = async(req, res) => {
-    try {
-      const id_dokumen = req.params.id_dokumen;
-      if(id_dokumen) {
-        const data = await Dokumen.findOne({
-            include: [
-                { model: User, as: "user",
-                  include: [{ model: DataUser }]
-                 },
-            ],
-            where: { id_dokumen },
-        });
-        return res.status(200).json(data);
-      }
-        const data = await Dokumen.findAll({
-            include: [
-                { model: User, as: "user",
-                  include: [{ model: DataUser }]
-                 },
-            ],
-            order: [["id_dokumen", "DESC"]],
-        });
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({
-            status: "error",
-            message: "Gagal mengambil data.",
-            error: error.message,
-        });
-    }
-}
-
-const uploadData = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        status: "error",
-        message: "File tidak ditemukan",
-      });
-    }
-
-    const data = await Dokumen.create({
-      id_user: req.body.id_user,
-      nama_dokumen: req.body.nama_dokumen,
-      kategori: req.body.kategori,
-      link: `/uploads/dokumen/${req.body.id_user}/${req.body.kategori}/${req.file.filename}`,
-    });
-
-    return res.status(200).json(data);
-
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal upload dokumen",
-      error: error.message,
-    });
-  }
-};
-
-const updateDokumen = async(req, res) => {
-  try{
-    const { id_dokumen } = req.params;
-    const { nama_dokumen } = req.body;
-    const data = await Dokumen.update({ nama_dokumen}, { where: { id_dokumen } });
-    return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal update dokumen",
-      error: error.message,
-    });
-  }
-}
-
-const deleteDokumen = async (req, res) => {
-  try {
-    const { id_dokumen } = req.params;
-
-    const dok = await Dokumen.findOne({ where: { id_dokumen } });
-
-    if (!dok) {
-      return res.status(404).json({
-        status: "error",
-        message: "Data dokumen tidak ditemukan",
-      });
-    }
-
-    // Ambil root project
-    const rootPath = path.join(__dirname, "../");
-
-    // dok.link = "/uploads/dokumen/1/17650xxxx.pdf"
-    const filePath = path.join(rootPath, dok.link);
-
-    console.log("File path:", filePath);
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log("File deleted.");
-    } else {
-      console.log("File not found.");
-    }
-
-    await Dokumen.destroy({ where: { id_dokumen } });
-
-    return res.status(200).json({
-      status: "success",
-      message: "Dokumen dan file berhasil dihapus",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal delete dokumen",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
-    detailSiswa, detailUser, updateSiswa, updateUser, dataSiswa, dataUser, dataMapel, createUser, deleteUser, dataUserFp,
-    dataGuru, deleteSiswa, hitungAbsen, dokumenData, uploadData, updateDokumen, deleteDokumen, dataTendik
+    detailSiswa, updateUser, dataSiswa, createUser, deleteUser,
+    dataGuru, dataTendik
 }

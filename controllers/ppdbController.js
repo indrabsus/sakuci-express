@@ -1,5 +1,4 @@
 const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = require('../models'); // Pastikan path benar
-const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
 const waService = require('../whatsapp/waService');
 const moment = require('moment');
@@ -61,35 +60,6 @@ const kelas = async (req, res) => {
       error: error.message,
     })
   }
-}
-
-const kelasDetail = async (req, res) => {
-      const {id_kelas} = req.params;
-    try {
-        let whereCondition = {}; // Default tanpa filter
-
-    if (id_kelas) {
-      whereCondition.id_kelas = id_kelas; // Filter tahun hanya jika ada parameter
-    }
-//   const tahunSekarang = new Date().getFullYear();
-  const data = await KelasPpdb.findOne({
-      where:whereCondition,
-      include:[{
-          model: JurusanPpdb, as: "jurusan_ppdb"
-      }]
-  })
-   res.status(200).json({
-     status: 'success',
-     message: 'Data siswa berhasil diambil.',
-     data: data,
-   });
- } catch (error) {
-   res.status(500).json({
-     status: 'error',
-     message: 'Gagal mengambil data.',
-     error: error.message,
-   });
- }
 }
 
 const createKelas = async(req, res) => {
@@ -231,58 +201,6 @@ const logPpdb = async (req, res) => {
   }
 }
 
-const logPpdbDetail = async (req, res) => {
-  try {
-    const { id_log, id_siswa } = req.query;
-
-    const where = {};
-    if (id_log) where.id_log = id_log;
-    if (id_siswa) where.id_siswa = id_siswa;
-
-    const data = id_log
-      ? await LogPpdb.findOne({ where })
-      : await LogPpdb.findAll({ where });
-
-    // ====== HITUNG KEUANGAN SISWA ======
-    let keuangan_siswa = null;
-
-    if (id_siswa && Array.isArray(data)) {
-      keuangan_siswa = {
-        d: 0, // daftar
-        p: 0, // pembayaran
-        l: 0, // lain-lain (jika ada)
-      };
-
-      data.forEach(item => {
-        const nominal = Number(item.nominal) || 0;
-
-        if (item.jenis === 'd') {
-          keuangan_siswa.d += nominal;
-        } else if (item.jenis === 'p') {
-          keuangan_siswa.p += nominal;
-        } else if (item.jenis === 'l') {
-          keuangan_siswa.l += nominal;
-        }
-      });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Data Log PPDB berhasil diambil.',
-      data,
-      keuangan_siswa,
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Gagal mengambil data Log PPDB.',
-      error: error.message,
-    });
-  }
-};
-
-
 const dataSiswa = async (req, res) => {
     try {
         const {tahun, status} = req.params;
@@ -316,39 +234,6 @@ const dataSiswa = async (req, res) => {
         });
     }
 }
-
-const detailSiswa = async (req, res) => {
-    try {
-        const { id_siswa, tahun } = req.params;
-        console.log("Mencari siswa dengan ID:", id_siswa, "dan Tahun:", tahun);
-
-        const siswa = await SiswaPpdb.findOne({
-            include: [{ model: LogPpdb, as: 'log_ppdb' }],
-            where: { tahun, id_siswa },
-        });
-
-        if (!siswa) {
-            return res.status(404).json({
-                status: "error",
-                message: "Siswa tidak ditemukan.",
-                data: null,
-            });
-        }
-
-        res.status(200).json({
-            status: "success",
-            message: "Data siswa berhasil diambil.",
-            data: siswa,
-        });
-    } catch (error) {
-        console.error("Error saat mengambil data siswa:", error);
-        res.status(500).json({
-            status: "error",
-            message: "Gagal mengambil data siswa.",
-            error: error.message,
-        });
-    }
-};
 
 function generateAlias(nama_lengkap) {
   // 1️⃣ Hapus karakter selain huruf dan angka (termasuk spasi dan tanda petik)
@@ -828,38 +713,6 @@ const postKelas = async (req, res) => {
     }
 };
 
-const tampilKelas = async(req, res) => {
-    const {id_siswa} = req.params;
-    try {
-        const data = await SiswaBaru.findOne({
-            where:{id_siswa},
-            include: [{
-                model: KelasPpdb, as: 'kelas_ppdb'
-            }]
-        })
-        if (!data) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Data siswa tidak ditemukan.'
-            });
-        }
-
-        res.status(200).json({
-            status: 'success',
-            message: 'Data kelas berhasil diambil.',
-            data
-        });
-    } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Gagal mengambil data kelas.',
-      error: error.message,
-    });
-  }
-}
-
-
-
 const masterPpdb = async (req, res) => {
   const { id_ppdb } = req.params
   const { tahun } = req.query
@@ -1216,184 +1069,6 @@ const updateLog = async (req, res) => {
   }
 };
 
-const laporanPpdb = async (req, res) => {
-  try {
-    const { tahun } = req.params;
-
-    // ===============================
-    // MASTER PPDB
-    // ===============================
-    const daftar = await MasterPpdb.findOne({
-      where: { tahun }
-    });
-
-    if (!daftar) {
-      return res.status(404).json({ message: "Master PPDB tidak ditemukan" });
-    }
-
-    // ===============================
-    // TOTAL PENDAFTAR
-    // ===============================
-    const pendaftar = await SiswaPpdb.count({
-      where: { tahun }
-    });
-
-    // ===============================
-    // HANYA DAFTAR (d tapi belum pernah p)
-    // ===============================
-    const hanyadaftar = await LogPpdb.count({
-      where: {
-        jenis: "d",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun),
-          {
-            id_siswa: {
-              [Op.notIn]: literal(`(
-                SELECT id_siswa FROM log_ppdb WHERE jenis = 'p'
-              )`)
-            }
-          }
-        ]
-      },
-      distinct: true,
-      col: "id_siswa"
-    });
-
-    // ===============================
-    // MENGUNDURKAN DIRI
-    // ===============================
-    const mengundurkan = await SiswaPpdb.count({
-      where: {
-        bayar_daftar: "l",
-        tahun
-      }
-    });
-
-    // ===============================
-    // BELUM ADA AKSI
-    // ===============================
-    const noaction = await SiswaPpdb.count({
-      where: {
-        bayar_daftar: "n",
-        tahun
-      }
-    });
-
-    // ===============================
-    // SUDAH DAFTAR
-    // ===============================
-    const sudahdaftar = await SiswaPpdb.count({
-      where: {
-        bayar_daftar: "y",
-        tahun
-      }
-    });
-
-    // ===============================
-    // KURANG DARI 1 JUTA
-    // ===============================
-    const kurangsejuta = await LogPpdb.count({
-      where: {
-        jenis: "p",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      },
-      group: ["id_siswa"],
-      having: literal("SUM(nominal) < 1000000")
-    });
-
-    // ===============================
-    // LEBIH DARI 1 JUTA TAPI BELUM LUNAS
-    // ===============================
-    const lebihsejuta = await LogPpdb.count({
-      where: {
-        jenis: "p",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      },
-      group: ["id_siswa"],
-      having: literal(`
-        SUM(nominal) >= 1000000 
-        AND SUM(nominal) < ${daftar.ppdb}
-      `)
-    });
-
-    // ===============================
-    // LUNAS
-    // ===============================
-    const lunas = await LogPpdb.count({
-      where: {
-        jenis: "p",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      },
-      group: ["id_siswa"],
-      having: literal(`SUM(nominal) = ${daftar.ppdb}`)
-    });
-
-    // ===============================
-    // TOTAL UANG DAFTAR
-    // ===============================
-    const uangdaftar = await LogPpdb.sum("nominal", {
-      where: {
-        jenis: "d",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      }
-    });
-
-    // ===============================
-    // TOTAL UANG PPDB
-    // ===============================
-    const uangppdb = await LogPpdb.sum("nominal", {
-      where: {
-        jenis: "p",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      }
-    });
-
-    // ===============================
-    // TOTAL UANG MENGUNDURKAN DIRI
-    // ===============================
-    const uangundur = await LogPpdb.sum("nominal", {
-      where: {
-        jenis: "l",
-        [Op.and]: [
-          where(fn("YEAR", col("created_at")), tahun)
-        ]
-      }
-    });
-
-    // ===============================
-    // RESPONSE
-    // ===============================
-    return res.json({
-      // master: daftar,
-      pendaftar_total: pendaftar || 0,
-      sudah_daftar: sudahdaftar || 0,
-      hanya_daftar: hanyadaftar || 0,
-      kurang_sejuta: kurangsejuta.length || 0,
-      lebih_sejuta: lebihsejuta.length || 0,
-      lunas: lunas.length || 0,
-      mengundurkan: mengundurkan || 0,
-      belum_bayar: noaction || 0,
-      uang_daftar: uangdaftar || 0,
-      uang_ppdb: uangppdb || 0,
-      uang_undur: uangundur || 0
-    });
-
-  } catch (error) {
-    console.error("ERROR LAPORAN PPDB:", error);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
 const deleteKelasSiswa = async (req, res) => {
   try {
     const { id_siswa } = req.params;
@@ -1660,6 +1335,6 @@ const restoreJson = async (req, res) => {
 
 
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, detailSiswa, bayarPpdb, logPpdb, kelas, postKelas, tampilKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
-kelasDetail, updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, logPpdbDetail, updateLog, createMaster, 
-updateMaster, deleteMaster, laporanPpdb, trfServer, backupJson, restoreJson};
+module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, bayarPpdb, logPpdb, kelas, postKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
+updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, updateLog, createMaster,
+updateMaster, deleteMaster, trfServer, backupJson, restoreJson};

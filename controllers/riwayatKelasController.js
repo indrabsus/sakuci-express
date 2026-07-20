@@ -46,52 +46,6 @@ const tahunAjaranAktif = async (req, res) => {
   }
 };
 
-const riwayatSiswa = async (req, res) => {
-  const { id_siswa } = req.params;
-
-  try {
-    const data = await RiwayatKelas.findAll({
-      where: { id_siswa },
-      order: [["tahun_ajaran", "DESC"]],
-    });
-
-    return res.status(200).json({
-      status: "success",
-      message: "Riwayat kelas berhasil diambil.",
-      data,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil riwayat kelas.",
-      error: error.message,
-    });
-  }
-};
-
-const kelasTerkini = async (req, res) => {
-  const { id_siswa } = req.params;
-
-  try {
-    const data = await RiwayatKelas.findOne({
-      where: { id_siswa },
-      order: [["tahun_ajaran", "DESC"]],
-    });
-
-    return res.status(200).json({
-      status: "success",
-      message: "Kelas terkini berhasil diambil.",
-      data,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal mengambil kelas terkini.",
-      error: error.message,
-    });
-  }
-};
-
 const riwayatByTahun = async (req, res) => {
   const { tahun_ajaran } = req.query;
 
@@ -382,8 +336,6 @@ const belumMasukKelas = async (req, res) => {
 };
 
 module.exports = {
-  riwayatSiswa,
-  kelasTerkini,
   riwayatByTahun,
   daftarTahunAjaran,
   daftarKelasByTahun,

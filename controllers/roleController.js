@@ -1,6 +1,6 @@
 const { where, Op } = require('sequelize');
 const db = require('../models');
-const {Role, User, DataSiswa} = db;
+const {Role, User} = db;
 const bcrypt = require("bcrypt");
 
 // Contoh fungsi untuk mendapatkan semua role

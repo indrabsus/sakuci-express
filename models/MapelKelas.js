@@ -50,7 +50,6 @@ module.exports = (sequelize, DataTypes) => {
   // Relasi
   MapelKelas.associate = (models) => {
     MapelKelas.belongsTo(models.MataPelajaran, { foreignKey: 'id_mapel', as: 'mata_pelajaran', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
-    MapelKelas.belongsTo(models.Kelas, { foreignKey: 'id_kelas', as: 'kelas', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
     MapelKelas.belongsTo(models.User, { foreignKey: 'id_user', as: 'user', onUpdate: 'CASCADE', onDelete: 'CASCADE' });
   };
 

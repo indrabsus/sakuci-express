@@ -21,7 +21,6 @@ const {
   updateLoglainnya,
   deleteLogLainnya,
   createLogLainnya,
-  laporan,
   dataSiswa,
   logPpdb,
   deleteLogPpdb,
@@ -138,9 +137,6 @@ router.get("/loglainnya/:id_logluar?", logLainnya);
 router.post("/createloglainnya", createLogLainnya);
 router.put("/updateloglainnya/:id_logluar", updateLoglainnya);
 router.delete("/deleteloglainnya/:id_logluar", deleteLogLainnya);
-
-// LAPORAN
-router.get("/laporan", laporan);
 
 // DATA SISWA
 router.get("/siswa", dataSiswa);

@@ -1,6 +1,6 @@
 const { Op, fn, col, literal, Sequelize, where  } = require('sequelize');
-const {MapelKelas, MataPelajaran, DataSiswa, Kelas, Jurusan, 
-  User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb, Jadwal} = require('../models');
+const {MapelKelas, MataPelajaran,
+  User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb} = require('../models');
 const moment = require('moment-timezone');
 const axios = require("axios");
 const waService = require('../whatsapp/waService');
@@ -127,38 +127,6 @@ const hitungAgenda = async (req, res) => {
   }
 };
 
-const dataJadwal = async (req, res) => {
-  try {
-    const { id_data, hari, jam_ke } = req.params;
-
-    
-      data = await Jadwal.findOne({
-        where: { id_data, hari, jam_ke },
-      });
-
-    if (data) {
-      return res.status(200).json({
-        status: "success",
-        message: "Data ditemukan",
-        data,
-      });
-    }
-
-    return res.status(404).json({
-      status: "error",
-      message: "Belum ada data",
-    });
-
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Terjadi kesalahan pada server",
-      error: error.message,
-    });
-  }
-};
-
 const hariAgenda = async (req, res) => {
   try {
     // Waktu sekarang dalam zona waktu lokal (WIB)
@@ -174,107 +142,6 @@ const hariAgenda = async (req, res) => {
   } catch (e) {
     console.error("Error:", e);
     res.status(500).json({ status: "error", message: e.message });
-  }
-};
-
-const hariJadwal = async (req, res) => {
-  try {
-    const { hari } = req.params;
-
-    
-      data = await Jadwal.findAll({
-        include: [
-          { model: DataUser, as: "guru" },
-          { model: MataPelajaran, as: "mapel" },
-          { model: KelasPpdb, as: "kelas" }
-        ],
-        where: { hari },
-        order: [["jam_ke", "ASC"]]
-      });
-
-    if (data) {
-      return res.status(200).json({
-        status: "success",
-        message: "Data ditemukan",
-        data,
-      });
-    }
-
-    return res.status(404).json({
-      status: "error",
-      message: "Belum ada data",
-    });
-
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Terjadi kesalahan pada server",
-      error: error.message,
-    });
-  }
-};
-
-const jadwalList = async (req, res) => {
-  try {
-    const { id_jadwal } = req.params; // ambil dari parameter URL kalau ada
-
-    let data;
-
-    if (id_jadwal) {
-      // kalau ada id_jadwal, ambil satu data saja
-      data = await Jadwal.findOne({
-        where: { id_jadwal },
-        include: [
-          { model: DataUser, as: "guru" },
-          { model: MataPelajaran, as: "mapel" },
-          { model: KelasPpdb, as: "kelas" },
-        ],
-      });
-
-      if (!data) {
-        return res.status(404).json({
-          status: "error",
-          message: "Data dengan ID tersebut tidak ditemukan",
-        });
-      }
-
-      return res.status(200).json({
-        status: "success",
-        message: "Data ditemukan",
-        data,
-      });
-    }
-
-    // kalau tidak ada id_jadwal, ambil semua data
-    data = await Jadwal.findAll({
-      include: [
-        { model: DataUser, as: "guru" },
-        { model: MataPelajaran, as: "mapel" },
-        { model: KelasPpdb, as: "kelas" },
-      ],
-      order: [["created_at", "DESC"]],
-    });
-
-    if (!data || data.length === 0) {
-      return res.status(404).json({
-        status: "error",
-        message: "Belum ada data",
-      });
-    }
-
-    return res.status(200).json({
-      status: "success",
-      message: "Data ditemukan",
-      data,
-    });
-  } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Terjadi kesalahan pada server",
-      error: error.message,
-    });
   }
 };
 
@@ -380,127 +247,6 @@ const createAgenda = async (req, res) => {
   }
 };
 
-const createJadwal = async (req, res) => {
-  const {
-    id_data,
-    id_mapel,
-    id_kelas,
-    jam_ke,
-    sampai_ke,
-    hari,
-    tahun_pelajaran
-  } = req.body;
-
-  try {
-    
-
-    // cek apakah sudah ada agenda di tanggal yg sama, kelas sama, jamke sama
-    const duplicate = await Jadwal.findOne({
-      where: {
-        id_data,
-        jam_ke,
-        id_kelas,
-        id_mapel,
-        tahun_pelajaran
-      },
-    });
-
-    if (duplicate) {
-      const updateJadwal = await Jadwal.update(
-        {
-          sampai_ke,
-        },
-        {
-          where: {
-            id_data,
-            jam_ke,
-            id_kelas,
-            id_mapel,
-            tahun_pelajaran
-          },
-        }
-      )
-      return res.status(200).json({
-        status: "update success",
-        message: "Jadwal sudah terupdate!",
-      });
-    }
-
-    // kalau tidak ada duplikat, buat agenda baru
-    const data = await Jadwal.create({
-      id_data,
-    id_mapel,
-    id_kelas,
-    jam_ke,
-    sampai_ke,
-    hari,
-    tahun_pelajaran
-    });
-
-    res.status(200).json({
-      status: "success",
-      message: "berhasil menambahkan data!",
-      data,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "gagal",
-      message: "gagal mengambil data!",
-      error: error.message,
-    });
-  }
-};
-
-const updateJadwal = async (req, res) => {
-  const { id_jadwal } = req.params; // ambil ID dari URL
-  const {
-    id_data,
-    id_mapel,
-    id_kelas,
-    jam_ke,
-    sampai_ke,
-    hari,
-    tahun_pelajaran
-  } = req.body;
-
-  try {
-    // cek apakah data dengan id_jadwal tersebut ada
-    const jadwal = await Jadwal.findOne({ where: { id_jadwal } });
-
-    if (!jadwal) {
-      return res.status(404).json({
-        status: "error",
-        message: "Data jadwal tidak ditemukan",
-      });
-    }
-
-    // update data jadwal
-    await jadwal.update({
-      id_data,
-      id_mapel,
-      id_kelas,
-      jam_ke,
-      sampai_ke,
-      hari,
-      tahun_pelajaran
-    });
-
-    return res.status(200).json({
-      status: "success",
-      message: "Data jadwal berhasil diperbarui",
-      data: jadwal,
-    });
-
-  } catch (error) {
-    console.error("Error update jadwal:", error);
-    return res.status(500).json({
-      status: "error",
-      message: "Gagal memperbarui data jadwal",
-      error: error.message,
-    });
-  }
-};
-
 function normalizePhoneNumber(no_hp) {
   if (!no_hp) return null;
 
@@ -550,40 +296,6 @@ const deleteAgenda = async (req, res) => {
 };
 
 
-
-// Fungsi AGENDA LAMA
-const isiAgenda = async (req, res) => {
-  try {
-    const { username } = req.params;
-    const currentDay = new Date().getDay() || 7;
-
-    const data = await MapelKelas.findAll({
-      include: [
-        { model: MataPelajaran, as: 'mata_pelajaran' },
-        { 
-          model: Kelas, 
-          as: 'kelas', 
-          include: [{ model: Jurusan, as: 'jurusan' }] 
-        },
-        { 
-          model: User, 
-          as: 'user', 
-          where: { username },
-          required: true,
-        },
-      ],
-      where: literal(`FIND_IN_SET(${currentDay}, hari) > 0`),
-    });
-
-    if (data.length > 0) {
-      return res.status(200).json({ data, status: 200 });
-    }
-    return res.status(404).json({ message: 'Data tidak ditemukan' });
-  } catch (error) {
-    console.error('Error isiAgenda:', error);
-    return res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message });
-  }
-};
 
 // Fungsi cekUsername
 const cekUsername = async (req, res) => {
@@ -679,54 +391,6 @@ const prosesAgenda = async (req, res) => {
 };
 
 
-// Fungsi absenListSiswa
-const absenListSiswa = async (req, res) => {
-  const { id_materi } = req.params;
-
-  try {
-    // Melakukan query dengan left join menggunakan Sequelize
-    const data = await Materi.findAll({
-      where: { id_materi },
-      include: [{
-        model: MapelKelas, as: 'mapel_kelas',
-        include: [{
-          model: Kelas, as: "kelas",
-          include: [{
-            model: Jurusan, as: "jurusan"
-          }, {
-            model: DataSiswa, as: "data_siswa",
-            include: [{
-              model: User, as: "user",
-              where: { acc: "y" }
-            }],
-            order: [['nama_lengkap', 'ASC']]  // Urutkan berdasarkan nama_lengkap di level DataSiswa
-          }]
-        }, {
-          model: MataPelajaran, as: 'mata_pelajaran',
-        }]
-      }],
-      order: [[
-        { model: MapelKelas, as: 'mapel_kelas' },  // Pastikan model mapel_kelas ada
-        { model: Kelas, as: 'kelas' },  // Pastikan kelas diurutkan jika perlu
-        { model: DataSiswa, as: 'data_siswa' },
-        'nama_lengkap',  // Urutkan berdasarkan nama_lengkap
-        'ASC'  // Ascending
-      ]]
-    });
-
-    return res.status(200).json({
-      data,
-      status: 200
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      message: 'Error occurred while fetching data',
-      error: error.message,
-    });
-  }
-};
-
 async function prosesAbsen(req, res) {
     const { id_user, id_materi, waktu_agenda, keterangan } = req.params;
     
@@ -772,36 +436,6 @@ async function prosesAbsen(req, res) {
     }
 }
 
-const deleteJadwal = async (req, res) => {
-  const { id_jadwal } = req.params;
-
-  try {
-    const jadwal = await Jadwal.findByPk(id_jadwal);
-
-    if (!jadwal) {
-      return res.status(404).json({
-        status: "error",
-        message: "Data jadwal tidak ditemukan!",
-      });
-    }
-
-    await jadwal.destroy();
-
-    res.status(200).json({
-      status: "success",
-      message: "Data jadwal berhasil dihapus!",
-    });
-  } catch (error) {
-    console.error("Error delete jadwal:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Gagal menghapus data jadwal!",
-      error: error.message,
-    });
-  }
-};
-
-module.exports = { isiAgenda, cekUsername, getMateri, hariAgenda,
-  prosesAgenda, absenListSiswa, prosesAbsen, dataAgenda, 
-  deleteAgenda, createAgenda, dataJadwal, createJadwal, jadwalList,
-updateJadwal, deleteJadwal, hitungAgenda, hariJadwal };
+module.exports = { cekUsername, getMateri, hariAgenda,
+  prosesAgenda, prosesAbsen, dataAgenda,
+  deleteAgenda, createAgenda, hitungAgenda };

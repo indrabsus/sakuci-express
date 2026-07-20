@@ -1,8 +1,6 @@
 const express = require('express');
 const proteksi = require('../middleware/authMiddleware');
 const {
-  riwayatSiswa,
-  kelasTerkini,
   riwayatByTahun,
   daftarTahunAjaran,
   daftarKelasByTahun,
@@ -20,8 +18,6 @@ router.get('/tahun-aktif', proteksi, tahunAjaranAktif);
 router.get('/tahun-list', proteksi, daftarTahunAjaran);
 router.get('/kelas-list', proteksi, daftarKelasByTahun);
 router.get('/belum-kelas', proteksi, belumMasukKelas);
-router.get('/siswa/:id_siswa', proteksi, riwayatSiswa);
-router.get('/terkini/:id_siswa', proteksi, kelasTerkini);
 router.get('/tahun', proteksi, riwayatByTahun);
 router.post('/', proteksi, createRiwayat);
 router.post('/naik-kelas', proteksi, naikKelas);

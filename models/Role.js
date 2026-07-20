@@ -29,7 +29,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Role.associate = (models) => {
     Role.hasMany(models.User, { foreignKey: 'id_role', as: 'user' });
-    Role.hasMany(models.JsSubMenu, { foreignKey: 'id_role', as: 'sub_menu' });
   };
   
 

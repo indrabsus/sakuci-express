@@ -1,11 +1,8 @@
 const express = require('express');
-const { dataSiswa, siswaDetail, hitungSiswa, masterSiswa } = require('../controllers/siswaController');
+const { masterSiswa } = require('../controllers/siswaController');
 const proteksi = require('../middleware/authMiddleware');
 const router = express.Router();
 // const authMiddleware = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT
 
 router.get('/master', proteksi, masterSiswa);
-router.get('/data/:tahun', dataSiswa);
-router.get('/detail/:id_siswa', siswaDetail);
-router.get('/jumlah/:tingkat/:status', hitungSiswa);
 module.exports = router;

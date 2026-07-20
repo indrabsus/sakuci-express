@@ -11,12 +11,10 @@ const {
   jurusan,
   bayarDaftar,
   deleteLog,
-  detailSiswa,
   bayarPpdb,
   logPpdb,
   kelas,
   postKelas,
-  tampilKelas,
   updateKelas,
   deleteKelas,
   hitungSiswa,
@@ -26,18 +24,14 @@ const {
   updateSiswa,
   createJurusan,
   masterPpdb,
-  jurusanDetail,
   updateJurusan,
   deleteJurusan,
   createKelas,
-  kelasDetail,
-  logPpdbDetail,
   deleteKelasSiswa,
   updateLog,
   createMaster,
   updateMaster,
   deleteMaster,
-  laporanPpdb,
   trfServer,
   backupJson,
   restoreJson
@@ -79,7 +73,6 @@ const upload = multer({ storage });
 ========================= */
 
 router.get("/siswa/:tahun/:status?", proteksi, dataSiswa);
-router.get("/detailsiswa/:id_siswa/:tahun", proteksi, detailSiswa);
 router.put("/updatesiswa", proteksi, updateSiswa);
 router.delete("/deletesiswa", proteksi, deleteSiswa);
 router.post("/undursiswa", proteksi, leaveSiswa);
@@ -103,15 +96,8 @@ router.post("/bayarppdb", proteksi, upload.single("bukti"), bayarPpdb);
 ========================= */
 
 router.get("/log/:tahun", proteksi, logPpdb);
-router.get("/logdetail/:id_log?", proteksi, logPpdbDetail);
 router.put("/updatelog/:id_log", proteksi, upload.single("bukti"), updateLog);
 router.delete("/deletelog/:id_log", proteksi, deleteLog);
-
-/* =========================
-   LAPORAN
-========================= */
-
-router.get("/laporan/:tahun", laporanPpdb);
 
 /* =========================
    JURUSAN
@@ -137,12 +123,10 @@ router.delete("/deletemaster/:id_ppdb", proteksi, deleteMaster);
 
 router.get("/kelas", proteksi, kelas);
 router.get("/hitungsiswa/:id_kelas", proteksi, hitungSiswa);
-router.get("/detailkelas/:id_kelas?", proteksi, kelasDetail);
 router.post("/createkelas", proteksi, createKelas);
 router.put("/updatekelas/:id_kelas", proteksi, updateKelas);
 router.delete("/deletekelas/:id_kelas", proteksi, deleteKelas);
 
-router.get("/tampilkelas", proteksi, tampilKelas);
 router.post("/postkelas", proteksi, postKelas);
 router.delete("/deletekelassiswa/:id_siswa", proteksi, deleteKelasSiswa);
 router.get("/siswakelas/:tahun?/:id_kelas?", proteksi, siswaKelas);
