@@ -1,4 +1,4 @@
-const { RiwayatKelas, SiswaPpdb } = require("../models");
+const { RiwayatKelas, SiswaPpdb, SiswaBaru, KelasPpdb } = require("../models");
 const { fn, col, Op, literal } = require("sequelize");
 
 const daftarTahunAjaran = async (req, res) => {
@@ -310,6 +310,20 @@ const belumMasukKelas = async (req, res) => {
     const { count, rows } = await SiswaPpdb.findAndCountAll({
       where,
       attributes: ["id_siswa", "nama_lengkap", "nisn", "jenkel"],
+      include: [
+        {
+          model: SiswaBaru,
+          as: "siswa_baru",
+          required: false,
+          include: [
+            {
+              model: KelasPpdb,
+              as: "kelas_ppdb",
+              attributes: ["nama_kelas", "tingkat"],
+            },
+          ],
+        },
+      ],
       order: [["nama_lengkap", "ASC"]],
       limit,
       offset: (page - 1) * limit,
