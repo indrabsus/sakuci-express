@@ -276,7 +276,7 @@ const daftarKelasByTahun = async (req, res) => {
 };
 
 const belumMasukKelas = async (req, res) => {
-  const { tahun_ajaran, search, id_kelas_ppdb } = req.query;
+  const { tahun_ajaran, search, id_kelas_ppdb, tahun } = req.query;
 
   if (!tahun_ajaran) {
     return res.status(400).json({
@@ -299,6 +299,10 @@ const belumMasukKelas = async (req, res) => {
         ),
       },
     };
+
+    if (tahun) {
+      where.tahun = tahun;
+    }
 
     if (search) {
       where[Op.or] = [
