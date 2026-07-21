@@ -620,19 +620,14 @@ const createLogLainnya = async (req, res) => {
 };
 
 const dataSiswa = async (req, res) => {
-  const { tingkat, id_kelas, keyword, tahun_ajaran } = req.query;
+  const { tingkat, nama_kelas, keyword, tahun_ajaran } = req.query;
 
   try {
-    // Kalau filter id_kelas dipakai, cari dulu tingkat & nama_kelas kelas itu -
-    // riwayat_kelas cuma nyimpen nama_kelas (snapshot), bukan id_kelas.
-    let kelasFilter = null;
-
-    if (id_kelas) {
-      kelasFilter = await KelasPpdb.findOne({
-        where: { id_kelas },
-        attributes: ["tingkat", "nama_kelas"],
-      });
-    }
+    // Filter kelas dikirim sebagai nama_kelas langsung (bukan id_kelas dari
+    // kelas_ppdb) - riwayat_kelas cuma nyimpen nama_kelas sebagai snapshot,
+    // jadi filter-nya harus bersumber dari riwayat_kelas juga (lewat
+    // /riwayat-kelas/kelas-list), bukan dari kelas_ppdb yang bisa beda
+    // penamaan antar angkatan PPDB.
 
     // Kalau tahun_ajaran tidak dikirim, pakai tahun ajaran aktif (terbaru)
     // yang ada di riwayat_kelas.
@@ -658,11 +653,7 @@ const dataSiswa = async (req, res) => {
     const whereRiwayat = { tahun_ajaran: tahunAjaranTerpakai };
 
     if (tingkat) whereRiwayat.tingkat = String(tingkat);
-
-    if (kelasFilter) {
-      whereRiwayat.nama_kelas = kelasFilter.nama_kelas;
-      whereRiwayat.tingkat = String(kelasFilter.tingkat);
-    }
+    if (nama_kelas) whereRiwayat.nama_kelas = nama_kelas;
 
     const siswa = await SiswaPpdb.findAll({
       attributes: [
