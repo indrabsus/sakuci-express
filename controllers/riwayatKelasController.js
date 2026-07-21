@@ -276,7 +276,7 @@ const daftarKelasByTahun = async (req, res) => {
 };
 
 const belumMasukKelas = async (req, res) => {
-  const { tahun_ajaran, search } = req.query;
+  const { tahun_ajaran, search, id_kelas_ppdb } = req.query;
 
   if (!tahun_ajaran) {
     return res.status(400).json({
@@ -314,12 +314,14 @@ const belumMasukKelas = async (req, res) => {
         {
           model: SiswaBaru,
           as: "siswa_baru",
-          required: false,
+          required: !!id_kelas_ppdb,
           include: [
             {
               model: KelasPpdb,
               as: "kelas_ppdb",
               attributes: ["nama_kelas", "tingkat"],
+              required: !!id_kelas_ppdb,
+              ...(id_kelas_ppdb && { where: { id_kelas: id_kelas_ppdb } }),
             },
           ],
         },
