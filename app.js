@@ -9,6 +9,7 @@ const { Server } = require("socket.io");
 require("dotenv").config();
 
 const { runScheduledBackup } = require("./controllers/backupController");
+const { runTarikDataScheduled } = require("./jobs/tarikDataCron");
 const waService = require("./whatsapp/waService");
 
 const authRoutes = require("./routes/authRoutes");
@@ -83,6 +84,10 @@ app.get("/", (req, res) => {
 
 // Backup database otomatis tiap hari jam 01:00 (Asia/Jakarta), simpan 3 backup terakhir
 cron.schedule("0 1 * * *", runScheduledBackup, { timezone: "Asia/Jakarta" });
+
+// Tarik data absen dari mesin fingerprint otomatis tiap hari jam 07:00 dan 16:00 (Asia/Jakarta)
+cron.schedule("0 7 * * *", runTarikDataScheduled, { timezone: "Asia/Jakarta" });
+cron.schedule("0 16 * * *", runTarikDataScheduled, { timezone: "Asia/Jakarta" });
 
 const PORT = process.env.PORT || 3000;
 
