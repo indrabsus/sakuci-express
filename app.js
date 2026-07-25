@@ -27,6 +27,7 @@ const zkRoutes = require("./routes/zkRoutes");
 const riwayatKelasRoutes = require("./routes/riwayatKelasRoutes");
 const backupRoutes = require("./routes/backupRoutes");
 const waRoutes = require("./routes/waRoutes");
+const tarikDataLogRoutes = require("./routes/tarikDataLogRoutes");
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught exception (server tetap jalan):", err);
@@ -75,6 +76,7 @@ app.use("/zk", zkRoutes);
 app.use("/riwayat-kelas", riwayatKelasRoutes);
 app.use("/backup", backupRoutes);
 app.use("/wa", waRoutes);
+app.use("/tarik-data-log", tarikDataLogRoutes);
 
 app.get("/", (req, res) => {
   res.json({
