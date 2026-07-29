@@ -624,18 +624,17 @@ const createAbsenGuru = async (req, res) => {
       });
     }
 
-    if (req.user?.role === 'manajemen' && status === '0') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Piket tidak dapat menambahkan status Masuk/Hadir. Hanya Sakit, Izin, Dispen, atau Pulang.',
-      });
-    }
+    // Piket (role 'manajemen') boleh input Hadir manual, tapi keterangannya
+    // dikunci ke teks baku agar jelas itu bukan hasil scan RFID. Admin bebas isi sendiri.
+    const isPiket = req.user?.role === 'manajemen';
+    const finalKeterangan =
+      isPiket && status === '0' ? 'Diisi oleh piket' : keterangan || null;
 
     const data = await Absen.create({
       id_user,
       status,
       waktu,
-      keterangan: keterangan || null,
+      keterangan: finalKeterangan,
     });
 
     return res.status(201).json({
@@ -665,10 +664,15 @@ const updateAbsenGuru = async (req, res) => {
       });
     }
 
+    const finalStatus = status !== undefined ? status : data.status;
+    const isPiket = req.user?.role === 'manajemen';
+    const finalKeterangan =
+      isPiket && finalStatus === '0' ? 'Diisi oleh piket' : keterangan;
+
     await data.update({
       ...(status !== undefined && { status }),
       ...(waktu !== undefined && { waktu }),
-      ...(keterangan !== undefined && { keterangan }),
+      ...(finalKeterangan !== undefined && { keterangan: finalKeterangan }),
     });
 
     return res.json({
