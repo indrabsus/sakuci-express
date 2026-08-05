@@ -3,7 +3,6 @@ const {MapelKelas, MataPelajaran,
   User, Materi, AbsenSiswa, Agenda, DataUser, KelasPpdb} = require('../models');
 const moment = require('moment-timezone');
 const axios = require("axios");
-const waService = require('../whatsapp/waService');
 
 const dataAgenda = async (req, res) => {
   try {
@@ -205,37 +204,22 @@ const createAgenda = async (req, res) => {
     const dataUser = await DataUser.findOne({ where: { id_data } });
 
     // normalisasi nomor hp jika ada
-    let nomorTujuan = null;
     if (dataUser && no_hp) {
       const normalized = normalizePhoneNumber(no_hp);
-      nomorTujuan = normalized;
 
       if (dataUser.no_hp !== normalized) {
         await dataUser.update({ no_hp: normalized });
       }
     }
 
-    // 🔹 kirim respon sukses duluan
+    // Notifikasi link absen via WA dicabut - bot WA dihapus dari backend ini
+    // karena berat saat reinitialize tiap restart server (rencananya
+    // dipindah ke project terpisah).
     res.status(200).json({
       status: "success",
       message: "Berhasil menambahkan data!",
       data,
     });
-
-    // 🔹 kirim WA di background (tanpa menunggu)
-    if (nomorTujuan) {
-      (async () => {
-        try {
-          const waRes = await waService.sendMessageToNumber(
-            nomorTujuan,
-            `Ini adalah link Absen: ${process.env.API_LARAVEL}/siswakelas/${data.id_agenda}`
-          );
-          console.log("WA Response:", waRes);
-        } catch (waError) {
-          console.error("Gagal kirim WA:", waError.message);
-        }
-      })();
-    }
 
   } catch (error) {
     console.error(error);

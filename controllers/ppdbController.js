@@ -1,6 +1,5 @@
 const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = require('../models'); // Pastikan path benar
 const {axios, axiosInstance} = require('../config/axios');
-const waService = require('../whatsapp/waService');
 const moment = require('moment');
 const fs = require("fs");
 const catatLogAktivitas = require('../utils/catatLogAktivitas');
@@ -381,21 +380,13 @@ const trfServer = async (req, res) => {
       });
 
       // console.log(newSiswa)
-  
-      // Kirim pesan notifikasi
+
+      // Kirim notifikasi Telegram (notifikasi WA dicabut - bot WA dihapus
+      // dari backend ini karena berat saat reinitialize tiap restart server,
+      // rencananya dipindah ke project terpisah).
       try {
-        const kirimpesan = await waService.sendMessageToNumber(
-          no_hpFormatted,
-          `Terima Kasih ${nama_lengkap} telah mendaftar di SMK Sangkuriang 1 Cimahi.
-
-    Untuk tahap selanjutnya dipersilahkan untuk hadir langsung ke Kampus SMK Sangkuriang 1 Cimahi untuk melakukan registrasi secara langsung dan menyelesaikan seluruh pembiayaan SPMB. Dikarenakan saat ini kuota yang tersedia semakin menipis imbas dari banyaknya pendaftar yang hadir setelah pengumuman penerimaan  Sekolah Negeri.
-
-Terima Kasih
-Panitia SPMB SMK Sangkuriang 1 Cimahi
-`
-        );
-      const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted} | Status : ${server_number}`;
-      const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
+        const text = `Pemberitahuan, ada siswa baru mendaftar dengan nama ${nama_lengkap}, dan asal sekolah dari ${asal_sekolah}, no Whatsapp : https://wa.me/${no_hpFormatted} | Status : ${server_number}`;
+        const tele = await axios.get(`https://api.telegram.org/bot${process.env.API_BOT_TELEGRAM}/sendMessage?chat_id=${process.env.CHAT_ID_TELEGRAM}&text=${text}`);
       } catch (notifError) {
         console.error('Gagal mengirim pesan:', notifError.response?.data || notifError.message);
       }

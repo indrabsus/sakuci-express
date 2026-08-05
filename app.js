@@ -3,14 +3,11 @@ const cors = require("cors");
 const cron = require("node-cron");
 const path = require("path");
 const http = require("http");
-const jwt = require("jsonwebtoken");
-const { Server } = require("socket.io");
 
 require("dotenv").config();
 
 const { runScheduledBackup } = require("./controllers/backupController");
 const { runTarikDataScheduled } = require("./jobs/tarikDataCron");
-const waService = require("./whatsapp/waService");
 
 const authRoutes = require("./routes/authRoutes");
 const ppdbRoutes = require("./routes/ppdbRoutes");
@@ -26,7 +23,6 @@ const presensiRoutes = require("./routes/presensiRoutes");
 const zkRoutes = require("./routes/zkRoutes");
 const riwayatKelasRoutes = require("./routes/riwayatKelasRoutes");
 const backupRoutes = require("./routes/backupRoutes");
-const waRoutes = require("./routes/waRoutes");
 const tarikDataLogRoutes = require("./routes/tarikDataLogRoutes");
 const logAktivitasRoutes = require("./routes/logAktivitasRoutes");
 
@@ -76,7 +72,6 @@ app.use("/presensi", presensiRoutes);
 app.use("/zk", zkRoutes);
 app.use("/riwayat-kelas", riwayatKelasRoutes);
 app.use("/backup", backupRoutes);
-app.use("/wa", waRoutes);
 app.use("/tarik-data-log", tarikDataLogRoutes);
 app.use("/log-aktivitas", logAktivitasRoutes);
 
@@ -96,32 +91,6 @@ cron.schedule("0 16 * * *", runTarikDataScheduled, { timezone: "Asia/Jakarta" })
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: true,
-    credentials: true,
-  },
-});
-
-const waNamespace = io.of("/wa");
-
-waNamespace.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-
-  if (!token) {
-    return next(new Error("Access Denied. No Token Provided."));
-  }
-
-  try {
-    jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch (error) {
-    next(new Error("Invalid Token."));
-  }
-});
-
-waService.attachIO(io);
 
 server.on("error", (err) => {
   console.error(`Gagal listen di port ${PORT}:`, err.message);
