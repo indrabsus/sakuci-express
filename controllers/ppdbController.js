@@ -3,6 +3,7 @@ const {axios, axiosInstance} = require('../config/axios');
 const waService = require('../whatsapp/waService');
 const moment = require('moment');
 const fs = require("fs");
+const catatLogAktivitas = require('../utils/catatLogAktivitas');
 const path = require("path");
 
 const kelas = async (req, res) => {
@@ -434,6 +435,17 @@ Panitia SPMB SMK Sangkuriang 1 Cimahi
   } = req.body;
 
   try {
+    const dataSebelum = await SiswaPpdb.findByPk(id_siswa);
+
+    if (!dataSebelum) {
+      return res.status(404).json({
+        status: "error",
+        message: "Data tidak ditemukan atau tidak ada perubahan.",
+      });
+    }
+
+    const nilaiSebelum = dataSebelum.toJSON();
+
     const [updated] = await SiswaPpdb.update(
       { nama_lengkap,
         tempat_lahir,
@@ -458,6 +470,55 @@ Panitia SPMB SMK Sangkuriang 1 Cimahi
       return res.status(404).json({
         status: "error",
         message: "Data tidak ditemukan atau tidak ada perubahan.",
+      });
+    }
+
+    // Bandingkan cuma field yang benar-benar dikirim di request (field lain
+    // undefined karena tidak dikirim, bukan berarti sengaja dikosongkan) -
+    // supaya keterangan log akurat menyebutkan field mana saja yang berubah.
+    const fieldLabels = {
+      nama_lengkap: "Nama lengkap",
+      tempat_lahir: "Tempat lahir",
+      tanggal_lahir: "Tanggal lahir",
+      jenkel: "Jenis kelamin",
+      agama: "Agama",
+      alamat: "Alamat",
+      nisn: "NISN",
+      nik_siswa: "NIK",
+      nama_ayah: "Nama ayah",
+      nama_ibu: "Nama ibu",
+      asal_sekolah: "Asal sekolah",
+      minat_jurusan1: "Minat jurusan 1",
+      minat_jurusan2: "Minat jurusan 2",
+      no_hp: "No HP siswa",
+      no_hp_ortu: "No HP orang tua",
+      status: "Status",
+    };
+
+    const nilaiBaru = {
+      nama_lengkap, tempat_lahir, tanggal_lahir, jenkel, agama, alamat,
+      nisn, nik_siswa, nama_ayah, nama_ibu, asal_sekolah, minat_jurusan1,
+      minat_jurusan2, no_hp, no_hp_ortu, status,
+    };
+
+    const perubahan = [];
+
+    Object.entries(nilaiBaru).forEach(([key, value]) => {
+      if (value === undefined) return;
+
+      const sebelum = nilaiSebelum[key];
+      if (String(sebelum ?? "") === String(value ?? "")) return;
+
+      perubahan.push(`${fieldLabels[key] || key}: "${sebelum ?? "-"}" -> "${value ?? "-"}"`);
+    });
+
+    if (perubahan.length > 0) {
+      catatLogAktivitas(req, {
+        modul: "siswa",
+        aksi: "update",
+        keterangan: `Mengubah data siswa ${nilaiSebelum.nama_lengkap}: ${perubahan.join(", ")}`,
+        data_sebelum: nilaiSebelum,
+        data_sesudah: nilaiBaru,
       });
     }
 

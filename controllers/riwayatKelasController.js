@@ -1,5 +1,6 @@
 const { RiwayatKelas, SiswaPpdb, SiswaBaru, KelasPpdb } = require("../models");
 const { fn, col, Op, literal } = require("sequelize");
+const catatLogAktivitas = require("../utils/catatLogAktivitas");
 
 const daftarTahunAjaran = async (req, res) => {
   try {
@@ -160,6 +161,14 @@ const naikKelas = async (req, res) => {
 
     await t.commit();
 
+    catatLogAktivitas(req, {
+      modul: "kelas",
+      aksi: "create",
+      keterangan: `Memproses kenaikan kelas untuk ${created.length} siswa ke tahun ajaran ${tahun_ajaran}`,
+      data_sebelum: null,
+      data_sesudah: { tahun_ajaran, jumlah_siswa: created.length },
+    });
+
     return res.status(200).json({
       status: "success",
       message: `Berhasil memproses kenaikan kelas untuk ${created.length} siswa.`,
@@ -191,14 +200,34 @@ const pindahKelas = async (req, res) => {
     // riwayat untuk tahun ajaran ini, kelasnya diganti; kalau belum, dibuatkan
     // baru - jadi satu endpoint ini bisa dipakai baik untuk memindah kelas di
     // tahun ajaran yang sama maupun memasukkan ke tahun ajaran lain.
+    const siswa = await SiswaPpdb.findByPk(id_siswa, {
+      attributes: ["nama_lengkap"],
+    });
+
     const [riwayat, created] = await RiwayatKelas.findOrCreate({
       where: { id_siswa, tahun_ajaran },
       defaults: { tingkat, nama_kelas },
     });
 
+    const kelasSebelum = created
+      ? null
+      : { tingkat: riwayat.tingkat, nama_kelas: riwayat.nama_kelas };
+
     if (!created) {
       await riwayat.update({ tingkat, nama_kelas });
     }
+
+    const namaSiswa = siswa?.nama_lengkap || id_siswa;
+
+    catatLogAktivitas(req, {
+      modul: "kelas",
+      aksi: created ? "create" : "update",
+      keterangan: created
+        ? `Memasukkan ${namaSiswa} ke kelas ${tingkat} ${nama_kelas} (tahun ajaran ${tahun_ajaran})`
+        : `Memindahkan ${namaSiswa} dari kelas ${kelasSebelum.tingkat} ${kelasSebelum.nama_kelas} ke ${tingkat} ${nama_kelas} (tahun ajaran ${tahun_ajaran})`,
+      data_sebelum: kelasSebelum,
+      data_sesudah: { tingkat, nama_kelas },
+    });
 
     return res.status(200).json({
       status: "success",
@@ -220,14 +249,39 @@ const deleteRiwayat = async (req, res) => {
   const { id_riwayat } = req.params;
 
   try {
-    const deleted = await RiwayatKelas.destroy({ where: { id_riwayat } });
+    const riwayat = await RiwayatKelas.findByPk(id_riwayat, {
+      include: [
+        {
+          model: SiswaPpdb,
+          as: "siswa_ppdb",
+          attributes: ["nama_lengkap"],
+        },
+      ],
+    });
 
-    if (deleted === 0) {
+    if (!riwayat) {
       return res.status(404).json({
         status: "error",
         message: "Data riwayat kelas tidak ditemukan.",
       });
     }
+
+    const infoSebelum = {
+      nama_siswa: riwayat.siswa_ppdb?.nama_lengkap || riwayat.id_siswa,
+      tingkat: riwayat.tingkat,
+      nama_kelas: riwayat.nama_kelas,
+      tahun_ajaran: riwayat.tahun_ajaran,
+    };
+
+    await riwayat.destroy();
+
+    catatLogAktivitas(req, {
+      modul: "kelas",
+      aksi: "delete",
+      keterangan: `Mengeluarkan ${infoSebelum.nama_siswa} dari kelas ${infoSebelum.tingkat} ${infoSebelum.nama_kelas} (tahun ajaran ${infoSebelum.tahun_ajaran})`,
+      data_sebelum: infoSebelum,
+      data_sesudah: null,
+    });
 
     return res.status(200).json({
       status: "success",

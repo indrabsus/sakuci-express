@@ -3,6 +3,7 @@ const { Op, fn, col, literal, Sequelize, where } = require("sequelize");
 const { axios, axiosInstance } = require("../config/axios");
 const fs = require("fs");
 const path = require("path");
+const catatLogAktivitas = require("../utils/catatLogAktivitas");
 
 const masterSppData = async (req, res) => {
   const { tahun } = req.params; // atau req.query, tergantung rute
@@ -61,6 +62,14 @@ const createMaster= async(req, res) => {
                 message: 'gagal menambahkan data!'
             })
         } else {
+            catatLogAktivitas(req, {
+                modul: 'master_spp',
+                aksi: 'create',
+                keterangan: `Menambahkan master SPP tahun ${tahun}`,
+                data_sebelum: null,
+                data_sesudah: data.toJSON(),
+            })
+
             res.status(200).json({
                 status: 'success',
                 message: 'berhasil menambahkan data!',
@@ -89,8 +98,18 @@ const updateMaster = async (req, res) => {
             });
         }
 
+        const dataSebelum = data.toJSON();
+
         // update data
         await data.update({ tahun, spp10, spp11, spp12, daftar_ulang_11, daftar_ulang_12, pkl, ujian_akhir });
+
+        catatLogAktivitas(req, {
+            modul: 'master_spp',
+            aksi: 'update',
+            keterangan: `Mengubah master SPP tahun ${data.tahun}`,
+            data_sebelum: dataSebelum,
+            data_sesudah: data.toJSON(),
+        })
 
         res.status(200).json({
             status: 'success',
@@ -403,7 +422,17 @@ const updateLog = async (req, res) => {
       });
     }
 
+    const dataSebelum = data.toJSON();
+
     await data.update(updateData);
+
+    catatLogAktivitas(req, {
+      modul: "log_spp",
+      aksi: "update",
+      keterangan: `Mengubah data log pembayaran SPP (ID ${id_logspp})`,
+      data_sebelum: dataSebelum,
+      data_sesudah: data.toJSON(),
+    });
 
     res.status(200).json({
       status: "success",
@@ -433,6 +462,8 @@ const deleteLog = async (req, res) => {
       });
     }
 
+    const dataSebelum = data.toJSON();
+
     // Hapus file bukti jika ada
     if (data.bukti) {
       // Hilangkan slash depan kalau ada
@@ -455,6 +486,14 @@ const deleteLog = async (req, res) => {
 
     // Hapus data dari database
     await data.destroy();
+
+    catatLogAktivitas(req, {
+      modul: "log_spp",
+      aksi: "delete",
+      keterangan: `Menghapus data log pembayaran SPP sebesar Rp ${Number(dataSebelum.nominal || 0).toLocaleString("id-ID")} (ID ${id_logspp})`,
+      data_sebelum: dataSebelum,
+      data_sesudah: null,
+    });
 
     res.status(200).json({
       status: "success",
@@ -483,7 +522,17 @@ const deleteMaster = async (req, res) => {
             });
         }
 
+        const dataSebelum = data.toJSON();
+
         await data.destroy();
+
+        catatLogAktivitas(req, {
+            modul: 'master_spp',
+            aksi: 'delete',
+            keterangan: `Menghapus master SPP tahun ${dataSebelum.tahun}`,
+            data_sebelum: dataSebelum,
+            data_sesudah: null,
+        })
 
         res.status(200).json({
             status: 'success',
@@ -556,7 +605,17 @@ const updateLoglainnya = async (req, res) => {
       });
     }
 
+    const dataSebelum = data.toJSON();
+
     await data.update(updateData);
+
+    catatLogAktivitas(req, {
+      modul: "pembayaran_lainnya",
+      aksi: "update",
+      keterangan: `Mengubah data pembayaran lainnya${data.keterangan ? `: ${data.keterangan}` : ""} (ID ${id_logluar})`,
+      data_sebelum: dataSebelum,
+      data_sesudah: data.toJSON(),
+    });
 
     res.status(200).json({
       status: "success",
@@ -586,7 +645,17 @@ const deleteLogLainnya = async (req, res) => {
       });
     }
 
+    const dataSebelum = data.toJSON();
+
     await data.destroy();
+
+    catatLogAktivitas(req, {
+      modul: "pembayaran_lainnya",
+      aksi: "delete",
+      keterangan: `Menghapus data pembayaran lainnya${dataSebelum.keterangan ? `: ${dataSebelum.keterangan}` : ""} (ID ${id_logluar})`,
+      data_sebelum: dataSebelum,
+      data_sesudah: null,
+    });
 
     res.status(200).json({
       status: "success",
@@ -605,6 +674,15 @@ const createLogLainnya = async (req, res) => {
   try {
     const createData = req.body;
     const data = await LogLuarSpp.create(createData);
+
+    catatLogAktivitas(req, {
+      modul: "pembayaran_lainnya",
+      aksi: "create",
+      keterangan: `Menambahkan pembayaran lainnya${createData?.keterangan ? `: ${createData.keterangan}` : ""}`,
+      data_sebelum: null,
+      data_sesudah: data.toJSON(),
+    });
+
     res.status(200).json({
       status: "success",
       message: "Data berhasil disimpan.",
@@ -918,6 +996,8 @@ const deleteLogPpdb = async (req, res) => {
       return res.status(404).json({ message: "Data tidak ditemukan" });
     }
 
+    const dataSebelum = log.toJSON();
+
     // 🔹 hapus file bukti kalau ada
     if (log.bukti) {
       const filePath = path.join(__dirname, "..", log.bukti);
@@ -937,6 +1017,14 @@ const deleteLogPpdb = async (req, res) => {
 
     // 🔹 hapus log
     await LogPpdb.destroy({ where: { id_log } });
+
+    catatLogAktivitas(req, {
+      modul: "log_ppdb",
+      aksi: "delete",
+      keterangan: `Menghapus data log pembayaran PPDB sebesar Rp ${Number(dataSebelum.nominal || 0).toLocaleString("id-ID")} (ID ${id_log})`,
+      data_sebelum: dataSebelum,
+      data_sesudah: null,
+    });
 
     return res.json({ message: "Data & bukti berhasil dihapus" });
   } catch (error) {
@@ -1517,6 +1605,20 @@ const restoreArsipTahunAjaran = async (req, res) => {
     const rLogPpdb = await restoreRows(LogPpdb, "id_log", log_ppdb, t);
 
     await t.commit();
+
+    catatLogAktivitas(req, {
+      modul: "arsip",
+      aksi: "create",
+      keterangan: `Restore arsip tahun ajaran: ${rSiswa.inserted} siswa, ${rSiswaBaru.inserted} siswa baru, ${rRiwayat.inserted} riwayat kelas, ${rLogSpp.inserted} log SPP, ${rLogPpdb.inserted} log PPDB ditambahkan`,
+      data_sebelum: null,
+      data_sesudah: {
+        siswa_ppdb: rSiswa,
+        siswa_baru: rSiswaBaru,
+        riwayat_kelas: rRiwayat,
+        log_spp: rLogSpp,
+        log_ppdb: rLogPpdb,
+      },
+    });
 
     return res.status(200).json({
       status: "success",
