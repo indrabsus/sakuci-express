@@ -8,6 +8,7 @@ const fs = require("fs");
 const {
   dataSiswa,
   regisSiswa,
+  tambahSiswaCepat,
   jurusan,
   bayarDaftar,
   deleteLog,
@@ -82,6 +83,7 @@ router.post("/undursiswa", proteksi, leaveSiswa);
 ========================= */
 
 router.post("/daftar", regisSiswa);
+router.post("/tambah-cepat", proteksi, tambahSiswaCepat);
 router.post("/trfserver", trfServer);
 
 /* =========================

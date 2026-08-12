@@ -404,7 +404,81 @@ const trfServer = async (req, res) => {
       });
     }
   }
-  
+
+  // Password default sama dengan yang dipakai regisSiswa - siswa yang
+  // ditambahkan lewat jalur cepat ini masih bisa login pakai password ini
+  // kalau suatu saat dibutuhkan.
+  const DEFAULT_PASSWORD_HASH = "$2y$10$T37wZbFAVv7.F2DQ5xf7CeHN4jW8anTqI3OnIR.tezKHjZGVRRvvm";
+
+  const generatePlaceholderUnik = (prefix) => {
+    return `${prefix}${Date.now()}${Math.floor(Math.random() * 90000 + 10000)}`;
+  };
+
+  // Tambah murid baru versi cepat (dipakai dari menu Pembayaran SPP-Next) -
+  // cuma minta nama_lengkap, field wajib lain yang tidak relevan buat siswa
+  // pindahan/susulan (biodata lengkap, kritik saran, dst) diisi placeholder
+  // supaya tidak melanggar constraint NOT NULL / UNIQUE di tabel siswa_ppdb.
+  // Status langsung "aktif" (bukan "ppdb") karena siswa ini memang sudah
+  // masuk kelas, bukan pendaftar baru yang masih menunggu proses PPDB.
+  const tambahSiswaCepat = async (req, res) => {
+    const { nama_lengkap } = req.body;
+
+    if (!nama_lengkap || !nama_lengkap.trim()) {
+      return res.status(400).json({
+        status: "error",
+        message: "Nama lengkap wajib diisi.",
+      });
+    }
+
+    try {
+      const tahunSekarang = new Date().getFullYear();
+
+      const newSiswa = await SiswaPpdb.create({
+        username: generateAlias(nama_lengkap),
+        password: DEFAULT_PASSWORD_HASH,
+        nama_lengkap: nama_lengkap.trim(),
+        tanggal_lahir: "2000-01-01",
+        jenkel: "l",
+        agama: "-",
+        alamat: "-",
+        nisn: generatePlaceholderUnik("NISN"),
+        nik_siswa: generatePlaceholderUnik("NIK"),
+        nama_ayah: "-",
+        nama_ibu: "-",
+        asal_sekolah: "-",
+        minat_jurusan1: "-",
+        minat_jurusan2: "-",
+        no_hp: "000",
+        no_hp_ortu: "000",
+        tahun: tahunSekarang,
+        bayar_daftar: "y",
+        status: "aktif",
+        wifi: "f",
+      });
+
+      catatLogAktivitas(req, {
+        modul: "siswa",
+        aksi: "create",
+        keterangan: `Menambahkan murid baru ${newSiswa.nama_lengkap} lewat form cepat (cuma nama - data lain diisi placeholder)`,
+        data_sebelum: null,
+        data_sesudah: newSiswa.toJSON(),
+      });
+
+      return res.status(201).json({
+        status: "success",
+        message: "Murid baru berhasil ditambahkan.",
+        data: newSiswa,
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        status: "error",
+        message: "Gagal menambahkan murid baru.",
+        error: error.message,
+      });
+    }
+  };
+
   const updateSiswa = async (req, res) => {
   const { nama_lengkap,
         tempat_lahir,
@@ -1387,6 +1461,6 @@ const restoreJson = async (req, res) => {
 
 
 
-module.exports = { dataSiswa, regisSiswa, jurusan, bayarDaftar, deleteLog, bayarPpdb, logPpdb, kelas, postKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
+module.exports = { dataSiswa, regisSiswa, tambahSiswaCepat, jurusan, bayarDaftar, deleteLog, bayarPpdb, logPpdb, kelas, postKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
 updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, updateLog, createMaster,
 updateMaster, deleteMaster, trfServer, backupJson, restoreJson};
