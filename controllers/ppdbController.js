@@ -421,7 +421,7 @@ const trfServer = async (req, res) => {
   // Status langsung "aktif" (bukan "ppdb") karena siswa ini memang sudah
   // masuk kelas, bukan pendaftar baru yang masih menunggu proses PPDB.
   const tambahSiswaCepat = async (req, res) => {
-    const { nama_lengkap } = req.body;
+    const { nama_lengkap, tahun } = req.body;
 
     if (!nama_lengkap || !nama_lengkap.trim()) {
       return res.status(400).json({
@@ -431,7 +431,12 @@ const trfServer = async (req, res) => {
     }
 
     try {
-      const tahunSekarang = new Date().getFullYear();
+      // Angkatan PPDB siswa ini - kalau ditambahkan ke tingkat 11/12 (bukan
+      // 10), frontend mengirim tahun masuk yang sudah disesuaikan mundur
+      // (mis. sekarang PPDB2026 = angkatan kelas 10, maka kelas 11 =
+      // PPDB2025) supaya cocok dengan master SPP/PPDB angkatannya. Kalau
+      // tidak dikirim, jatuhkan ke tahun sekarang.
+      const tahunMasuk = Number(tahun) || new Date().getFullYear();
 
       const newSiswa = await SiswaPpdb.create({
         username: generateAlias(nama_lengkap),
@@ -450,7 +455,7 @@ const trfServer = async (req, res) => {
         minat_jurusan2: "-",
         no_hp: "000",
         no_hp_ortu: "000",
-        tahun: tahunSekarang,
+        tahun: tahunMasuk,
         bayar_daftar: "y",
         status: "aktif",
         wifi: "f",
