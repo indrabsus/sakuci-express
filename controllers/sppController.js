@@ -4,6 +4,7 @@ const { axios, axiosInstance } = require("../config/axios");
 const fs = require("fs");
 const path = require("path");
 const catatLogAktivitas = require("../utils/catatLogAktivitas");
+const { getTahunAjaranAktifNama, getIdTahunAjaran, getOrCreateIdTahunAjaran } = require("../utils/tahunAjaran");
 
 const masterSppData = async (req, res) => {
   const { tahun } = req.params; // atau req.query, tergantung rute
@@ -280,16 +281,15 @@ const logSpp = async (req, res) => {
     let tahunAjaranTerpakai = tahun_ajaran;
 
     if (!tahunAjaranTerpakai) {
-      const latest = await RiwayatKelas.findOne({
-        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      });
-
-      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
+      tahunAjaranTerpakai = await getTahunAjaranAktifNama();
     }
 
+    const idTahunAjaranTerpakai = tahunAjaranTerpakai
+      ? await getIdTahunAjaran(tahunAjaranTerpakai)
+      : null;
+
     const whereRiwayat = tahunAjaranTerpakai
-      ? { tahun_ajaran: tahunAjaranTerpakai }
+      ? { id_tahun_ajaran: idTahunAjaranTerpakai }
       : undefined;
 
     if (whereRiwayat && pakaiFilterTingkat) {
@@ -327,7 +327,7 @@ const logSpp = async (req, res) => {
               // siswanya belum punya riwayat_kelas tetap muncul.
               model: RiwayatKelas,
               as: "riwayat_kelas",
-              attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
+              attributes: ["tingkat", "nama_kelas"],
 
               where: whereRiwayat,
               required: pakaiFilterTingkat,
@@ -361,7 +361,7 @@ const logSpp = async (req, res) => {
               ? {
                   tingkat: riwayat.tingkat,
                   nama_kelas: riwayat.nama_kelas,
-                  tahun_ajaran: riwayat.tahun_ajaran,
+                  tahun_ajaran: tahunAjaranTerpakai,
                 }
               : null,
           },
@@ -712,12 +712,7 @@ const dataSiswa = async (req, res) => {
     let tahunAjaranTerpakai = tahun_ajaran;
 
     if (!tahunAjaranTerpakai) {
-      const latest = await RiwayatKelas.findOne({
-        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      });
-
-      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
+      tahunAjaranTerpakai = await getTahunAjaranAktifNama();
     }
 
     if (!tahunAjaranTerpakai) {
@@ -728,7 +723,8 @@ const dataSiswa = async (req, res) => {
       });
     }
 
-    const whereRiwayat = { tahun_ajaran: tahunAjaranTerpakai };
+    const idTahunAjaranTerpakai = await getIdTahunAjaran(tahunAjaranTerpakai);
+    const whereRiwayat = { id_tahun_ajaran: idTahunAjaranTerpakai };
 
     if (tingkat) whereRiwayat.tingkat = String(tingkat);
     if (nama_kelas) whereRiwayat.nama_kelas = nama_kelas;
@@ -788,7 +784,7 @@ const dataSiswa = async (req, res) => {
           // ke kelas_ppdb.
           model: RiwayatKelas,
           as: "riwayat_kelas",
-          attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
+          attributes: ["tingkat", "nama_kelas"],
           where: whereRiwayat,
           required: true,
         },
@@ -842,7 +838,7 @@ const dataSiswa = async (req, res) => {
         kelas_terkini: {
           tingkat: riwayat.tingkat,
           nama_kelas: riwayat.nama_kelas,
-          tahun_ajaran: riwayat.tahun_ajaran,
+          tahun_ajaran: tahunAjaranTerpakai,
         },
 
         target_ppdb: targetPpdb,
@@ -912,13 +908,12 @@ const logPpdb = async (req, res) => {
     let tahunAjaranTerpakai = tahun_ajaran;
 
     if (!tahunAjaranTerpakai) {
-      const latest = await RiwayatKelas.findOne({
-        attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-        raw: true,
-      });
-
-      tahunAjaranTerpakai = latest?.tahun_ajaran || null;
+      tahunAjaranTerpakai = await getTahunAjaranAktifNama();
     }
+
+    const idTahunAjaranTerpakai = tahunAjaranTerpakai
+      ? await getIdTahunAjaran(tahunAjaranTerpakai)
+      : null;
 
     const { count, rows } = await LogPpdb.findAndCountAll({
       where: whereLog,
@@ -937,9 +932,9 @@ const logPpdb = async (req, res) => {
               model: RiwayatKelas,
               as: "riwayat_kelas",
               required: false,
-              attributes: ["tahun_ajaran", "tingkat", "nama_kelas"],
+              attributes: ["tingkat", "nama_kelas"],
               where: tahunAjaranTerpakai
-                ? { tahun_ajaran: tahunAjaranTerpakai }
+                ? { id_tahun_ajaran: idTahunAjaranTerpakai }
                 : undefined,
             },
           ],
@@ -966,7 +961,7 @@ const logPpdb = async (req, res) => {
               ? {
                   tingkat: riwayat.tingkat,
                   nama_kelas: riwayat.nama_kelas,
-                  tahun_ajaran: riwayat.tahun_ajaran,
+                  tahun_ajaran: tahunAjaranTerpakai,
                 }
               : null,
           },
@@ -1422,8 +1417,10 @@ const arsipTahunAjaranSummary = async (req, res) => {
       });
     }
 
+    const idTahunAjaran = await getIdTahunAjaran(tahun_ajaran);
+
     const riwayat = await RiwayatKelas.findAll({
-      where: { tahun_ajaran },
+      where: { id_tahun_ajaran: idTahunAjaran },
       attributes: ["id_siswa"],
       raw: true,
     });
@@ -1480,10 +1477,17 @@ const backupArsipTahunAjaran = async (req, res) => {
       });
     }
 
-    const riwayatKelas = await RiwayatKelas.findAll({
-      where: { tahun_ajaran },
+    const idTahunAjaran = await getIdTahunAjaran(tahun_ajaran);
+
+    const riwayatKelasRaw = await RiwayatKelas.findAll({
+      where: { id_tahun_ajaran: idTahunAjaran },
       raw: true,
     });
+
+    // Backup file harus tetap swasembada (self-contained) meski nanti tabel
+    // tahun_ajaran berubah, jadi labelnya ditempel balik di tiap baris,
+    // bukan cuma id_tahun_ajaran mentah.
+    const riwayatKelas = riwayatKelasRaw.map((item) => ({ ...item, tahun_ajaran }));
 
     const ids = [...new Set(riwayatKelas.map((item) => item.id_siswa))];
 
@@ -1588,6 +1592,20 @@ const restoreArsipTahunAjaran = async (req, res) => {
   const t = await SiswaPpdb.sequelize.transaction();
 
   try {
+    // Backup lama (sebelum tahun_ajaran jadi relasi) cuma punya label
+    // tahun_ajaran per baris, belum ada id_tahun_ajaran - resolve/buatkan
+    // di sini supaya file backup lawas tetap bisa di-restore.
+    let riwayatKelasSiapRestore = riwayat_kelas;
+    if (Array.isArray(riwayat_kelas)) {
+      riwayatKelasSiapRestore = await Promise.all(
+        riwayat_kelas.map(async (item) => {
+          if (item.id_tahun_ajaran || !item.tahun_ajaran) return item;
+          const id_tahun_ajaran = await getOrCreateIdTahunAjaran(item.tahun_ajaran);
+          return { ...item, id_tahun_ajaran };
+        })
+      );
+    }
+
     const rSiswa = await restoreRows(SiswaPpdb, "id_siswa", siswa_ppdb, t);
     const rSiswaBaru = await restoreRows(
       SiswaBaru,
@@ -1598,7 +1616,7 @@ const restoreArsipTahunAjaran = async (req, res) => {
     const rRiwayat = await restoreRows(
       RiwayatKelas,
       "id_riwayat",
-      riwayat_kelas,
+      riwayatKelasSiapRestore,
       t
     );
     const rLogSpp = await restoreRows(LogSpp, "id_logspp", log_spp, t);

@@ -1,19 +1,23 @@
-const { RiwayatKelas, SiswaPpdb, SiswaBaru, KelasPpdb } = require("../models");
+const { RiwayatKelas, SiswaPpdb, SiswaBaru, KelasPpdb, TahunAjaran } = require("../models");
 const { fn, col, Op, literal } = require("sequelize");
 const catatLogAktivitas = require("../utils/catatLogAktivitas");
+const {
+  getTahunAjaranAktifNama,
+  getIdTahunAjaran,
+  getOrCreateIdTahunAjaran,
+} = require("../utils/tahunAjaran");
 
 const daftarTahunAjaran = async (req, res) => {
   try {
-    const rows = await RiwayatKelas.findAll({
-      attributes: [[fn("DISTINCT", col("tahun_ajaran")), "tahun_ajaran"]],
-      order: [["tahun_ajaran", "DESC"]],
+    const rows = await TahunAjaran.findAll({
+      order: [["nama", "DESC"]],
       raw: true,
     });
 
     return res.status(200).json({
       status: "success",
       message: "Daftar tahun ajaran berhasil diambil.",
-      data: rows.map((row) => row.tahun_ajaran),
+      data: rows.map((row) => row.nama),
     });
   } catch (error) {
     return res.status(500).json({
@@ -26,16 +30,13 @@ const daftarTahunAjaran = async (req, res) => {
 
 const tahunAjaranAktif = async (req, res) => {
   try {
-    const result = await RiwayatKelas.findOne({
-      attributes: [[fn("MAX", col("tahun_ajaran")), "tahun_ajaran"]],
-      raw: true,
-    });
+    const nama = await getTahunAjaranAktifNama();
 
     return res.status(200).json({
       status: "success",
       message: "Tahun ajaran aktif berhasil diambil.",
       data: {
-        tahun_ajaran: result?.tahun_ajaran || null,
+        tahun_ajaran: nama,
       },
     });
   } catch (error) {
@@ -58,16 +59,29 @@ const riwayatByTahun = async (req, res) => {
   }
 
   try {
-    const data = await RiwayatKelas.findAll({
-      where: { tahun_ajaran },
+    const idTahunAjaran = await getIdTahunAjaran(tahun_ajaran);
+
+    const rows = await RiwayatKelas.findAll({
+      where: { id_tahun_ajaran: idTahunAjaran },
       include: [
         {
           model: SiswaPpdb,
           as: "siswa_ppdb",
           attributes: ["id_siswa", "nama_lengkap", "nisn", "status", "jenkel"],
         },
+        {
+          model: TahunAjaran,
+          as: "tahun_ajaran",
+          attributes: ["nama"],
+        },
       ],
       order: [["tingkat", "ASC"], ["nama_kelas", "ASC"]],
+    });
+
+    const data = rows.map((row) => {
+      const json = row.toJSON();
+      json.tahun_ajaran = json.tahun_ajaran?.nama || null;
+      return json;
     });
 
     return res.status(200).json({
@@ -88,8 +102,10 @@ const createRiwayat = async (req, res) => {
   const { id_siswa, tahun_ajaran, tingkat, nama_kelas } = req.body;
 
   try {
+    const idTahunAjaran = await getOrCreateIdTahunAjaran(tahun_ajaran);
+
     const existing = await RiwayatKelas.findOne({
-      where: { id_siswa, tahun_ajaran },
+      where: { id_siswa, id_tahun_ajaran: idTahunAjaran },
     });
 
     if (existing) {
@@ -99,12 +115,14 @@ const createRiwayat = async (req, res) => {
       });
     }
 
-    const data = await RiwayatKelas.create({
+    const created = await RiwayatKelas.create({
       id_siswa,
-      tahun_ajaran,
+      id_tahun_ajaran: idTahunAjaran,
       tingkat,
       nama_kelas,
     });
+
+    const data = { ...created.toJSON(), tahun_ajaran };
 
     return res.status(200).json({
       status: "success",
@@ -133,10 +151,11 @@ const naikKelas = async (req, res) => {
   const t = await RiwayatKelas.sequelize.transaction();
 
   try {
+    const idTahunAjaran = await getOrCreateIdTahunAjaran(tahun_ajaran);
     const idSiswaList = data.map((item) => item.id_siswa);
 
     const existing = await RiwayatKelas.findAll({
-      where: { tahun_ajaran, id_siswa: idSiswaList },
+      where: { id_tahun_ajaran: idTahunAjaran, id_siswa: idSiswaList },
       transaction: t,
     });
 
@@ -152,7 +171,7 @@ const naikKelas = async (req, res) => {
 
     const rows = data.map((item) => ({
       id_siswa: item.id_siswa,
-      tahun_ajaran,
+      id_tahun_ajaran: idTahunAjaran,
       tingkat: item.tingkat,
       nama_kelas: item.nama_kelas,
     }));
@@ -172,7 +191,7 @@ const naikKelas = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: `Berhasil memproses kenaikan kelas untuk ${created.length} siswa.`,
-      data: created,
+      data: created.map((item) => ({ ...item.toJSON(), tahun_ajaran })),
     });
   } catch (error) {
     await t.rollback();
@@ -200,12 +219,14 @@ const pindahKelas = async (req, res) => {
     // riwayat untuk tahun ajaran ini, kelasnya diganti; kalau belum, dibuatkan
     // baru - jadi satu endpoint ini bisa dipakai baik untuk memindah kelas di
     // tahun ajaran yang sama maupun memasukkan ke tahun ajaran lain.
+    const idTahunAjaran = await getOrCreateIdTahunAjaran(tahun_ajaran);
+
     const siswa = await SiswaPpdb.findByPk(id_siswa, {
       attributes: ["nama_lengkap"],
     });
 
     const [riwayat, created] = await RiwayatKelas.findOrCreate({
-      where: { id_siswa, tahun_ajaran },
+      where: { id_siswa, id_tahun_ajaran: idTahunAjaran },
       defaults: { tingkat, nama_kelas },
     });
 
@@ -234,7 +255,7 @@ const pindahKelas = async (req, res) => {
       message: created
         ? "Siswa berhasil dimasukkan ke kelas."
         : "Siswa berhasil dipindahkan ke kelas baru.",
-      data: riwayat,
+      data: { ...riwayat.toJSON(), tahun_ajaran },
     });
   } catch (error) {
     return res.status(500).json({
@@ -256,6 +277,11 @@ const deleteRiwayat = async (req, res) => {
           as: "siswa_ppdb",
           attributes: ["nama_lengkap"],
         },
+        {
+          model: TahunAjaran,
+          as: "tahun_ajaran",
+          attributes: ["nama"],
+        },
       ],
     });
 
@@ -270,7 +296,7 @@ const deleteRiwayat = async (req, res) => {
       nama_siswa: riwayat.siswa_ppdb?.nama_lengkap || riwayat.id_siswa,
       tingkat: riwayat.tingkat,
       nama_kelas: riwayat.nama_kelas,
-      tahun_ajaran: riwayat.tahun_ajaran,
+      tahun_ajaran: riwayat.tahun_ajaran?.nama || null,
     };
 
     await riwayat.destroy();
@@ -307,9 +333,11 @@ const daftarKelasByTahun = async (req, res) => {
   }
 
   try {
+    const idTahunAjaran = await getIdTahunAjaran(tahun_ajaran);
+
     const rows = await RiwayatKelas.findAll({
       attributes: ["tingkat", "nama_kelas"],
-      where: { tahun_ajaran },
+      where: { id_tahun_ajaran: idTahunAjaran },
       group: ["tingkat", "nama_kelas"],
       order: [["tingkat", "ASC"], ["nama_kelas", "ASC"]],
       raw: true,
@@ -342,13 +370,14 @@ const belumMasukKelas = async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const idTahunAjaran = await getIdTahunAjaran(tahun_ajaran);
 
     const where = {
       status: "aktif",
       id_siswa: {
         [Op.notIn]: literal(
-          `(SELECT id_siswa FROM riwayat_kelas WHERE tahun_ajaran = ${RiwayatKelas.sequelize.escape(
-            tahun_ajaran
+          `(SELECT id_siswa FROM riwayat_kelas WHERE id_tahun_ajaran = ${RiwayatKelas.sequelize.escape(
+            idTahunAjaran
           )})`
         ),
       },

@@ -16,9 +16,15 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
-    tahun_ajaran: {
-      type: DataTypes.STRING,
+    id_tahun_ajaran: {
+      type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: 'tahun_ajaran',
+        key: 'id_tahun_ajaran',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'RESTRICT',
     },
     tingkat: {
       type: DataTypes.STRING,
@@ -41,6 +47,7 @@ module.exports = (sequelize, DataTypes) => {
 
   RiwayatKelas.associate = (models) => {
     RiwayatKelas.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa_ppdb' });
+    RiwayatKelas.belongsTo(models.TahunAjaran, { foreignKey: 'id_tahun_ajaran', as: 'tahun_ajaran' });
   };
 
   return RiwayatKelas;

@@ -3,6 +3,7 @@ const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas, Absen, 
 const { Op, fn, col } = require('sequelize');
 const dayjs = require('dayjs');
 require('dayjs/locale/id');
+const { getTahunAjaranAktifNama, getIdTahunAjaran } = require('../utils/tahunAjaran');
 
 const BATAS_ON_TIME_MENIT = 6 * 60 + 30; // 06:30
 const BATAS_TOLERANSI_MENIT = 6 * 60 + 45; // 06:45
@@ -45,12 +46,9 @@ const presensiHarian = async (req, res) => {
     // Kelas siswa diambil dari riwayat_kelas (bukan siswa_baru/kelas_ppdb), untuk tahun ajaran tertentu
     let tahunAktif = tahun_ajaran;
     if (!tahunAktif) {
-      const maxTahun = await RiwayatKelas.findOne({
-        attributes: [[fn('MAX', col('tahun_ajaran')), 'tahun_ajaran']],
-        raw: true,
-      });
-      tahunAktif = maxTahun?.tahun_ajaran || null;
+      tahunAktif = await getTahunAjaranAktifNama();
     }
+    const idTahunAktif = tahunAktif ? await getIdTahunAjaran(tahunAktif) : null;
 
     // nama_kelas tidak unik lintas tingkat (mis. "PPLG 1" ada di tingkat 11 & 12),
     // jadi parameter kelas dikirim sebagai "tingkat|nama_kelas"
@@ -61,7 +59,7 @@ const presensiHarian = async (req, res) => {
     }
 
     const riwayatWhere = {};
-    if (tahunAktif) riwayatWhere.tahun_ajaran = tahunAktif;
+    if (tahunAktif) riwayatWhere.id_tahun_ajaran = idTahunAktif;
     if (namaKelasFilter) riwayatWhere.nama_kelas = namaKelasFilter;
     if (tingkatFilter) riwayatWhere.tingkat = tingkatFilter;
 
@@ -125,18 +123,15 @@ const rekapHarianSiswa = async (req, res) => {
     }
 
     if (!tahun_ajaran) {
-      const maxTahun = await RiwayatKelas.findOne({
-        attributes: [[fn('MAX', col('tahun_ajaran')), 'tahun_ajaran']],
-        raw: true,
-      });
-      tahun_ajaran = maxTahun?.tahun_ajaran || null;
+      tahun_ajaran = await getTahunAjaranAktifNama();
     }
+    const idTahunAjaran = tahun_ajaran ? await getIdTahunAjaran(tahun_ajaran) : null;
 
     const parts = kelas.split('|');
     const [tingkat, namaKelas] = parts.length === 2 ? parts : [undefined, kelas];
 
     const riwayatWhere = { nama_kelas: namaKelas };
-    if (tahun_ajaran) riwayatWhere.tahun_ajaran = tahun_ajaran;
+    if (tahun_ajaran) riwayatWhere.id_tahun_ajaran = idTahunAjaran;
     if (tingkat) riwayatWhere.tingkat = tingkat;
 
     const awal = dayjs(tanggal).startOf('day').format('YYYY-MM-DD HH:mm:ss');

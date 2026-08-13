@@ -198,7 +198,7 @@ const normalizedPhone = normalizePhone(no_hp);
     }
 
     // 🔑 Generate username
-    const username = generateUsername(nama_lengkap);
+    const username = await generateUsername(nama_lengkap);
 
     // 🔑 Hash password default
     const hashedPassword = await bcrypt.hash("123456", 10);
@@ -247,12 +247,28 @@ const normalizedPhone = normalizePhone(no_hp);
   }
 };
 
-// 🔧 Helper function untuk username
-function generateUsername(nama_lengkap) {
-  let cleanName = nama_lengkap.replace(/[^a-zA-Z0-9]/g, ""); // hapus spasi, titik, simbol
-  let namePart = cleanName.substring(0, 6).toLowerCase();
-  let randomNumber = Math.floor(100 + Math.random() * 900); // angka 100-999
-  return `${randomNumber}${namePart}`;
+// 🔧 Helper function untuk username - formatnya disamakan dengan portal-sakuci
+// (lib/username.ts: namaKeUsername): huruf kecil, buang karakter non
+// alfanumerik, ambil 10 karakter pertama dari nama. Kalau sudah dipakai,
+// baru ditambah 3 angka acak di belakang (bukan di depan seperti sebelumnya).
+async function generateUsername(nama_lengkap) {
+  const bersih = String(nama_lengkap)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 10);
+  const dasar = bersih.length >= 3 ? bersih : `${bersih}user`.slice(0, 10);
+
+  let kandidat = dasar;
+  let percobaan = 0;
+
+  while (await User.findOne({ where: { username: kandidat } })) {
+    const acak = String(Math.floor(100 + Math.random() * 900));
+    kandidat = `${dasar}${acak}`.slice(0, 30);
+    percobaan++;
+    if (percobaan > 5) break;
+  }
+
+  return kandidat;
 }
 
 // 🔧 Helper function untuk normalisasi nomor HP

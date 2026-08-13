@@ -1,5 +1,6 @@
-const {SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas} = require('../models'); // Pastikan path benar
+const {SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas, TahunAjaran} = require('../models'); // Pastikan path benar
 const { Op, literal } = require('sequelize');
+const { getIdTahunAjaran } = require('../utils/tahunAjaran');
 
 const SORTABLE_COLUMNS = {
     nama: 'nama_lengkap',
@@ -28,13 +29,15 @@ const SORTABLE_COLUMNS = {
         ];
       }
 
+      const idTahunAjaran = tahun_ajaran ? await getIdTahunAjaran(tahun_ajaran) : null;
+
       // Filter "belum ada kelas": siswa yang belum punya riwayat_kelas sama
       // sekali untuk tahun ajaran ini - dicek via subquery karena ini soal
       // ketiadaan baris, bukan sesuatu yang bisa difilter lewat include.
       if (belum_kelas === '1' && tahun_ajaran) {
         where.id_siswa = {
           [Op.notIn]: literal(
-            `(SELECT id_siswa FROM riwayat_kelas WHERE tahun_ajaran = ${SiswaPpdb.sequelize.escape(tahun_ajaran)})`
+            `(SELECT id_siswa FROM riwayat_kelas WHERE id_tahun_ajaran = ${SiswaPpdb.sequelize.escape(idTahunAjaran)})`
           ),
         };
       }
@@ -91,7 +94,7 @@ const SORTABLE_COLUMNS = {
       // berbeda (mis. "MPLB 1" ada di tingkat 11 dan 12) - tanpa itu filter
       // kelas bisa menyatukan siswa dari dua kelas yang sebenarnya berbeda.
       if (tahun_ajaran) {
-        const riwayatWhere = { tahun_ajaran };
+        const riwayatWhere = { id_tahun_ajaran: idTahunAjaran };
         if (kelas) riwayatWhere.nama_kelas = kelas;
         if (tingkat) riwayatWhere.tingkat = tingkat;
 
@@ -120,10 +123,27 @@ const SORTABLE_COLUMNS = {
         subQuery: false,
       });
 
+      // riwayat_kelas di-filter per tahun_ajaran di atas, jadi semua baris
+      // nested-nya pasti punya tahun ajaran yang sama - tinggal ditempel balik
+      // sebagai string flat (tanpa join TahunAjaran lagi) biar bentuk respons
+      // ke frontend tetap sama seperti sebelum kolomnya jadi relasi.
+      const data = tahun_ajaran
+        ? rows.map((row) => {
+            const json = row.toJSON();
+            if (Array.isArray(json.riwayat_kelas)) {
+              json.riwayat_kelas = json.riwayat_kelas.map((item) => ({
+                ...item,
+                tahun_ajaran,
+              }));
+            }
+            return json;
+          })
+        : rows;
+
       res.status(200).json({
         status: 'success',
         message: 'Data siswa berhasil diambil.',
-        data: rows,
+        data,
         pagination: {
           page,
           limit,

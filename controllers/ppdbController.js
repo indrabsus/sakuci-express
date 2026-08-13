@@ -235,20 +235,26 @@ const dataSiswa = async (req, res) => {
     }
 }
 
-function generateAlias(nama_lengkap) {
-  // 1️⃣ Hapus karakter selain huruf dan angka (termasuk spasi dan tanda petik)
+// Username di-cek dulu ke DB sebelum dipakai (retry sampai 10x kalau
+// bentrok) - sebelumnya tidak dicek sama sekali, jadi 2 siswa bisa kebagian
+// alias yang sama persis kalau random 3 digitnya kebetulan cocok.
+async function generateAlias(nama_lengkap) {
   const cleaned = nama_lengkap
-    .toLowerCase()             // ubah jadi huruf kecil
-    .replace(/[^a-z0-9]/g, ""); // hapus semua karakter selain huruf dan angka
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
-  // 2️⃣ Ambil maksimal 8 karakter pertama
   const shortName = cleaned.substring(0, 8);
 
-  // 3️⃣ Buat angka random 3 digit (100–999 biar gak ada nol di depan)
-  const randomNum = Math.floor(100 + Math.random() * 900);
+  let kandidat;
+  let percobaan = 0;
 
-  // 4️⃣ Gabungkan angka + nama
-  return `${randomNum}${shortName}`;
+  do {
+    const randomNum = Math.floor(100 + Math.random() * 900);
+    kandidat = `${randomNum}${shortName}`;
+    percobaan++;
+  } while (percobaan <= 10 && (await SiswaPpdb.findOne({ where: { username: kandidat } })));
+
+  return kandidat;
 }
 
 const trfServer = async (req, res) => {
@@ -355,7 +361,7 @@ const trfServer = async (req, res) => {
   
       // Simpan data ke database
       const newSiswa = await SiswaPpdb.create({
-        username: generateAlias(nama_lengkap),
+        username: await generateAlias(nama_lengkap),
         password: "$2y$10$T37wZbFAVv7.F2DQ5xf7CeHN4jW8anTqI3OnIR.tezKHjZGVRRvvm",
         nama_lengkap,
         tempat_lahir,
@@ -439,7 +445,7 @@ const trfServer = async (req, res) => {
       const tahunMasuk = Number(tahun) || new Date().getFullYear();
 
       const newSiswa = await SiswaPpdb.create({
-        username: generateAlias(nama_lengkap),
+        username: await generateAlias(nama_lengkap),
         password: DEFAULT_PASSWORD_HASH,
         nama_lengkap: nama_lengkap.trim(),
         tanggal_lahir: "2000-01-01",
