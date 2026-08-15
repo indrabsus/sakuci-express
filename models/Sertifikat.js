@@ -1,49 +1,54 @@
 module.exports = (sequelize, DataTypes) => {
-  const DataUser = sequelize.define('DataUser', {
-    id_data: {
+  const Sertifikat = sequelize.define('Sertifikat', {
+    id_sertifikat: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    id_user: {
+    nomor_sertifikat: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    id_siswa: {
       type: DataTypes.UUID,
       allowNull: false,
-      // references: {
-      //   model: 'users', // Referensikan nama tabel secara langsung
-      //   key: 'id',
-      // },
-      // onUpdate: 'CASCADE',
-      // onDelete: 'CASCADE',
     },
-    nama_lengkap: {
+    judul_manual: {
       type: DataTypes.STRING,
       allowNull: false,
-    },
-    jenkel: {
-      type: DataTypes.ENUM('l', 'p'),
-      allowNull: false,
-    },
-    no_rfid: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    uid_fp: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    nama_singkat: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    no_hp: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    gambar: {
-      type: DataTypes.STRING,
-      allowNull: true,
     },
     jurusan: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    nilai: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    kode_verifikasi: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    diterbitkan_oleh: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    nama_kajur: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.ENUM('aktif', 'dicabut'),
+      allowNull: false,
+      defaultValue: 'aktif',
+    },
+    nama_kepsek: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    nip_kepsek: {
       type: DataTypes.STRING,
       allowNull: true,
     },
@@ -56,19 +61,15 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
   }, {
-    tableName: 'data_user',
+    tableName: 'sertifikat',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
   });
 
-  DataUser.associate = (models) => {
-    DataUser.belongsTo(models.User, { foreignKey: 'id_user', as: 'user' });
-    DataUser.hasMany(models.Agenda, {
-      foreignKey: 'id_data',
-      as: 'agenda',
-    });
+  Sertifikat.associate = (models) => {
+    Sertifikat.belongsTo(models.SiswaPpdb, { foreignKey: 'id_siswa', as: 'siswa' });
   };
 
-  return DataUser;
+  return Sertifikat;
 };
