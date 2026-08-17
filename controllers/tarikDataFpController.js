@@ -21,16 +21,38 @@ function pesanErrorZk(err) {
   return err?.message || String(err);
 }
 
+// zklib-js cuma fallback TCP->UDP kalau koneksi TCP-nya di-refused
+// (ECONNREFUSED) - kalau cuma timeout (ETIMEDOUT, sering terjadi kalau
+// network/firewall diam-diam buang paket TCP-nya), library ini menyerah
+// tanpa pernah coba UDP sama sekali. Banyak mesin fingerprint (terutama
+// yang murah/clone) jalan di UDP, jadi di sini kita paksa coba UDP manual
+// kalau createSocket() bawaannya gagal.
+async function connectZk(ip) {
+  const zk = new ZKLib(ip, ZK_PORT, 10000, 4000);
+
+  try {
+    await zk.createSocket();
+    return zk;
+  } catch (errTcp) {
+    try {
+      await zk.zklibUdp.createSocket();
+      await zk.zklibUdp.connect();
+      zk.connectionType = "udp";
+      return zk;
+    } catch (errUdp) {
+      throw errTcp;
+    }
+  }
+}
+
 // CATATAN: library zklib-js yang dipakai di sini cuma expose deviceUserId +
 // recordTime per catatan absen (tidak ada field "type"/state check-in vs
 // check-out seperti punya library PHP ZKTeco) - jadi semua catatan untuk
 // sementara disimpan sebagai status "0" (masuk), belum bisa membedakan
 // pulang seperti versi PHP (status 0/4).
 async function tarikDariMesinFp(ip) {
-  const zk = new ZKLib(ip, ZK_PORT, 10000, 4000);
+  const zk = await connectZk(ip);
   let total = 0;
-
-  await zk.createSocket();
 
   try {
     const attendance = await zk.getAttendances();
