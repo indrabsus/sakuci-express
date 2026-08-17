@@ -4,6 +4,7 @@ const {
   logRfid, tarik, absenGuru, absenTendik, absenStaf, rekapKehadiran, rekapHarianSiswa,
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,
+  uidSaya,
 } = require('../controllers/presensiController');
 const router = express.Router();
 const proteksi = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT
@@ -27,5 +28,6 @@ router.get('/absen-staf/:id_user', proteksi, absenStaf);
 router.get('/rekap-bulanan-guru', proteksi, requireRole('admin'), rekapBulananGuru);
 router.get('/rekap-bulanan-tendik', proteksi, requireRole('admin'), rekapBulananTendik);
 router.get('/rekap-kehadiran/:uid_fp', rekapKehadiran); // tanpa proteksi, dipanggil aplikasi eksternal (Supabase) via uid_fp
+router.get('/uid-saya', proteksi, uidSaya);
 
 module.exports = router;

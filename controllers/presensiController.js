@@ -980,9 +980,35 @@ const rekapKehadiran = async (req, res) => {
   }
 };
 
+// Dipakai frontend guru untuk resolve uid_fp akun sendiri sebelum panggil
+// /presensi/rekap-kehadiran/:uid_fp (endpoint itu butuh uid_fp, bukan id_data).
+const uidSaya = async (req, res) => {
+  try {
+    const idData = req.user?.id_data;
+
+    if (!idData) {
+      return res.status(404).json({ status: 'error', message: 'Akun ini belum punya data staf.' });
+    }
+
+    const dataUser = await DataUser.findByPk(idData, { attributes: ['uid_fp', 'nama_lengkap'] });
+
+    if (!dataUser) {
+      return res.status(404).json({ status: 'error', message: 'Data staf tidak ditemukan.' });
+    }
+
+    return res.json({
+      status: 'success',
+      data: { uid_fp: dataUser.uid_fp, nama_lengkap: dataUser.nama_lengkap },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server', error: error.message });
+  }
+};
+
 module.exports = {
   deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, createHarian,
   logRfid, tarik, absenGuru, absenTendik, absenStaf, rekapKehadiran, rekapHarianSiswa,
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,
+  uidSaya,
 };
