@@ -196,4 +196,39 @@ const hapusSesi = async (req, res) => {
   }
 };
 
-module.exports = { daftarRiwayat, rosterAbsen, simpanAbsen, rekapAbsen, hapusSesi };
+// Ringkasan absen hari ini di SEMUA kelas yang diajar guru sekaligus - untuk
+// dashboard guru (daftarRiwayat/rekapAbsen di atas sengaja per-kelas saja).
+const ringkasanHariIni = async (req, res) => {
+  try {
+    const pengajaranList = await PembagianMengajar.findAll({
+      where: { id_user: req.user.userId },
+      attributes: ["id_pengajaran"],
+    });
+    const idPengajaranList = pengajaranList.map((p) => p.id_pengajaran);
+
+    const hariIni = new Date().toISOString().slice(0, 10);
+
+    const sudahAbsenHariIni = idPengajaranList.length
+      ? await AbsenKelas.findAll({
+          where: { id_pengajaran: idPengajaranList, tanggal: hariIni },
+          attributes: ["id_pengajaran"],
+        })
+      : [];
+
+    const idSudahAbsen = new Set(sudahAbsenHariIni.map((a) => a.id_pengajaran));
+
+    return res.status(200).json({
+      status: "success",
+      message: "Ringkasan absen hari ini berhasil diambil.",
+      data: {
+        total_kelas: idPengajaranList.length,
+        sudah_absen_hari_ini: idSudahAbsen.size,
+        belum_absen_hari_ini: idPengajaranList.length - idSudahAbsen.size,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil ringkasan absen.", error: error.message });
+  }
+};
+
+module.exports = { daftarRiwayat, rosterAbsen, simpanAbsen, rekapAbsen, hapusSesi, ringkasanHariIni };
