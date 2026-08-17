@@ -9,10 +9,12 @@ const {
   aktifkanSertifikat,
   hapusSertifikat,
   detailCetakSertifikat,
+  sertifikatSiswa,
 } = require("../controllers/sertifikatController");
 
 const router = express.Router();
 
+router.get("/siswa", proteksi, requireRole("siswa"), sertifikatSiswa);
 router.get("/siswa-jurusan", proteksi, requireRole("kajur"), daftarSiswaJurusan);
 router.get("/manual", proteksi, requireRole("kajur"), daftarSertifikat);
 router.post("/manual", proteksi, requireRole("kajur"), buatSertifikatManual);

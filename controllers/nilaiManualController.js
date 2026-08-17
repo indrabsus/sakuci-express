@@ -1,7 +1,26 @@
 const { NilaiManual, NilaiManualDetail, PembagianMengajar, MataPelajaran, SiswaPpdb, RiwayatKelas } = require("../models");
+const { getTahunAjaranAktifNama, getIdTahunAjaran } = require("../utils/tahunAjaran");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
+}
+
+async function ambilIdPengajaranSiswa(idSiswa) {
+  const namaTahunAktif = await getTahunAjaranAktifNama();
+  if (!namaTahunAktif) return [];
+
+  const idTahunAjaran = await getIdTahunAjaran(namaTahunAktif);
+  if (!idTahunAjaran) return [];
+
+  const riwayat = await RiwayatKelas.findOne({ where: { id_siswa: idSiswa, id_tahun_ajaran: idTahunAjaran } });
+  if (!riwayat) return [];
+
+  const rows = await PembagianMengajar.findAll({
+    where: { id_tahun_ajaran: idTahunAjaran, tingkat: riwayat.tingkat, nama_kelas: riwayat.nama_kelas },
+    attributes: ["id_pengajaran"],
+  });
+
+  return rows.map((r) => r.id_pengajaran);
 }
 
 async function ambilNilaiManualMilikGuru(req, idNilaiManual) {
@@ -211,4 +230,47 @@ const hapusNilaiManual = async (req, res) => {
   }
 };
 
-module.exports = { daftarNilaiManual, buatNilaiManual, rosterNilaiManual, simpanNilaiManual, hapusNilaiManual };
+// Nilai milik siswa yang login sendiri - lintas semua mapel/kelas yang
+// relevan buat dia di tahun ajaran aktif.
+const nilaiSiswa = async (req, res) => {
+  try {
+    const idPengajaranList = await ambilIdPengajaranSiswa(req.user.userId);
+
+    const rows = idPengajaranList.length
+      ? await NilaiManual.findAll({
+          where: { id_pengajaran: idPengajaranList },
+          include: [
+            {
+              model: PembagianMengajar,
+              as: "pengajaran",
+              attributes: ["tingkat", "nama_kelas"],
+              include: [{ model: MataPelajaran, as: "mapel", attributes: ["nama_pelajaran"] }],
+            },
+            {
+              model: NilaiManualDetail,
+              as: "detail",
+              where: { id_siswa: req.user.userId },
+              required: false,
+              attributes: ["nilai"],
+            },
+          ],
+          order: [["created_at", "DESC"]],
+        })
+      : [];
+
+    const data = rows.map((row) => ({
+      id_nilai_manual: row.id_nilai_manual,
+      judul: row.judul,
+      semester: row.semester,
+      created_at: row.created_at,
+      pengajaran: row.pengajaran,
+      nilai: row.detail?.[0]?.nilai !== undefined ? Number(row.detail[0].nilai) : null,
+    }));
+
+    return res.status(200).json({ status: "success", message: "Nilai berhasil diambil.", data });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil nilai.", error: error.message });
+  }
+};
+
+module.exports = { daftarNilaiManual, buatNilaiManual, rosterNilaiManual, simpanNilaiManual, hapusNilaiManual, nilaiSiswa };

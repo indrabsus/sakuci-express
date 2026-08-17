@@ -1,7 +1,28 @@
-const { MateriAjar, PembagianMengajar, MataPelajaran } = require("../models");
+const { MateriAjar, PembagianMengajar, MataPelajaran, RiwayatKelas } = require("../models");
+const { getTahunAjaranAktifNama, getIdTahunAjaran } = require("../utils/tahunAjaran");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
+}
+
+// Kelas siswa "saat ini" (dari riwayat_kelas di tahun ajaran aktif) dipakai
+// untuk mencocokkan pembagian_mengajar mana saja yang relevan buat siswa ini.
+async function ambilIdPengajaranSiswa(idSiswa) {
+  const namaTahunAktif = await getTahunAjaranAktifNama();
+  if (!namaTahunAktif) return [];
+
+  const idTahunAjaran = await getIdTahunAjaran(namaTahunAktif);
+  if (!idTahunAjaran) return [];
+
+  const riwayat = await RiwayatKelas.findOne({ where: { id_siswa: idSiswa, id_tahun_ajaran: idTahunAjaran } });
+  if (!riwayat) return [];
+
+  const rows = await PembagianMengajar.findAll({
+    where: { id_tahun_ajaran: idTahunAjaran, tingkat: riwayat.tingkat, nama_kelas: riwayat.nama_kelas },
+    attributes: ["id_pengajaran"],
+  });
+
+  return rows.map((r) => r.id_pengajaran);
 }
 
 const daftarMateri = async (req, res) => {
@@ -110,4 +131,29 @@ const hapusMateri = async (req, res) => {
   }
 };
 
-module.exports = { daftarMateri, buatMateri, updateMateri, hapusMateri };
+const daftarMateriSiswa = async (req, res) => {
+  try {
+    const idPengajaranList = await ambilIdPengajaranSiswa(req.user.userId);
+
+    const rows = idPengajaranList.length
+      ? await MateriAjar.findAll({
+          where: { id_pengajaran: idPengajaranList },
+          include: [
+            {
+              model: PembagianMengajar,
+              as: "pengajaran",
+              attributes: ["tingkat", "nama_kelas"],
+              include: [{ model: MataPelajaran, as: "mapel", attributes: ["nama_pelajaran"] }],
+            },
+          ],
+          order: [["tanggal", "DESC"]],
+        })
+      : [];
+
+    return res.status(200).json({ status: "success", message: "Daftar materi berhasil diambil.", data: rows });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil daftar materi.", error: error.message });
+  }
+};
+
+module.exports = { daftarMateri, buatMateri, updateMateri, hapusMateri, daftarMateriSiswa };

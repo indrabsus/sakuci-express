@@ -230,6 +230,20 @@ const detailCetakSertifikat = async (req, res) => {
   }
 };
 
+// Sertifikat milik siswa yang login sendiri.
+const sertifikatSiswa = async (req, res) => {
+  try {
+    const data = await Sertifikat.findAll({
+      where: { id_siswa: req.user.userId },
+      order: [["created_at", "DESC"]],
+    });
+
+    return res.status(200).json({ status: "success", message: "Sertifikat berhasil diambil.", data });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil sertifikat.", error: error.message });
+  }
+};
+
 module.exports = {
   daftarSiswaJurusan,
   daftarSertifikat,
@@ -238,4 +252,5 @@ module.exports = {
   aktifkanSertifikat,
   hapusSertifikat,
   detailCetakSertifikat,
+  sertifikatSiswa,
 };

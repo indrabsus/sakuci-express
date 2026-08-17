@@ -1,5 +1,6 @@
 const express = require("express");
 const proteksi = require("../middleware/authMiddleware");
+const requireRole = require("../middleware/roleMiddleware");
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
@@ -34,6 +35,7 @@ const {
   arsipTahunAjaranSummary,
   backupArsipTahunAjaran,
   restoreArsipTahunAjaran,
+  statusSppSiswa,
 } = require("../controllers/sppController");
 
 const router = express.Router();
@@ -140,6 +142,7 @@ router.delete("/deleteloglainnya/:id_logluar", deleteLogLainnya);
 
 // DATA SISWA
 router.get("/siswa", dataSiswa);
+router.get("/siswa/status", proteksi, requireRole("siswa"), statusSppSiswa);
 
 // BAYAR SPP
 router.post("/bayar", upload.single("bukti"), bayarSpp);

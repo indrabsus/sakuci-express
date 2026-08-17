@@ -1661,8 +1661,49 @@ const restoreArsipTahunAjaran = async (req, res) => {
   }
 };
 
+// Label "bulan" SPP disamakan persis dengan SPP-Next: bukan bulan kalender
+// (tahun ajaran mulai Juli, bukan Januari), dan kode 13-19 dipakai untuk
+// item non-bulanan (tunggakan per tingkat, daftar ulang, PKL, ujian akhir) -
+// bukan bulan kalender asli.
+const BULAN_LABEL_SPP = {
+  1: "Juli", 2: "Agustus", 3: "September", 4: "Oktober", 5: "November", 6: "Desember",
+  7: "Januari", 8: "Februari", 9: "Maret", 10: "April", 11: "Mei", 12: "Juni",
+  13: "Tunggakan Kelas 10", 14: "Tunggakan Kelas 11", 15: "Tunggakan Kelas 12",
+  16: "Daftar Ulang Kelas 11", 17: "Daftar Ulang Kelas 12", 18: "PKL", 19: "Ujian Akhir",
+};
+
+const BAYAR_LABEL_SPP = { csh: "Cash", trf: "Transfer", sbs: "Dibebaskan" };
+
+// Log SPP milik siswa yang login sendiri - ditampilkan apa adanya sebagai
+// daftar riwayat pembayaran (seperti di SPP-Next), bukan grid status
+// lunas/belum per bulan yang dihitung sendiri.
+const statusSppSiswa = async (req, res) => {
+  try {
+    const logList = await LogSpp.findAll({
+      where: { id_siswa: req.user.userId },
+      order: [["created_at", "DESC"]],
+    });
+
+    const data = logList.map((log) => ({
+      id_logspp: log.id_logspp,
+      bulan: Number(log.bulan),
+      keterangan: BULAN_LABEL_SPP[Number(log.bulan)] || "-",
+      kelas: log.kelas,
+      nominal: Number(log.nominal),
+      bayar: log.bayar,
+      bayar_label: BAYAR_LABEL_SPP[log.bayar] || log.bayar,
+      created_at: log.created_at,
+    }));
+
+    return res.status(200).json({ status: "success", message: "Log SPP berhasil diambil.", data });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil log SPP.", error: error.message });
+  }
+};
+
 module.exports = {
   masterSppData, dataSiswa, deleteLogPpdb,  arsipSummary,
+  statusSppSiswa,
 backupArsipMaster,
 backupArsipSiswa,
 backupArsipLogSpp,

@@ -7,10 +7,12 @@ const {
   rosterNilaiManual,
   simpanNilaiManual,
   hapusNilaiManual,
+  nilaiSiswa,
 } = require("../controllers/nilaiManualController");
 
 const router = express.Router();
 
+router.get("/siswa", proteksi, requireRole("siswa"), nilaiSiswa);
 router.get("/", proteksi, requireRole("guru"), daftarNilaiManual);
 router.post("/", proteksi, requireRole("guru"), buatNilaiManual);
 router.get("/roster", proteksi, requireRole("guru"), rosterNilaiManual);

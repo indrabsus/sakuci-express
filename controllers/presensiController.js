@@ -1059,8 +1059,26 @@ const uidSaya = async (req, res) => {
   }
 };
 
+// Riwayat absen harian (RFID) milik siswa yang login sendiri.
+const riwayatHarianSiswa = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 60, 200);
+
+    const rows = await AbsenHarianSiswa.findAll({
+      where: { id_siswa: req.user.userId },
+      order: [["waktu", "DESC"]],
+      limit,
+    });
+
+    return res.status(200).json({ status: "success", message: "Riwayat absen harian berhasil diambil.", data: rows });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil riwayat absen harian.", error: error.message });
+  }
+};
+
 module.exports = {
   deleteHarian, updateHarian, detailHarian, presensiHarian, cekHarian, createHarian,
+  riwayatHarianSiswa,
   logRfid, tarik, absenGuru, absenTendik, absenStaf, rekapKehadiran, rekapHarianSiswa,
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,

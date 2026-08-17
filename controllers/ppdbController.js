@@ -1472,6 +1472,42 @@ const restoreJson = async (req, res) => {
 
 
 
+// Status PPDB milik siswa yang login sendiri - status akun, pembayaran
+// biaya daftar, penempatan kelas (kalau sudah ditempatkan), dan riwayat
+// pembayaran PPDB.
+const statusPpdbSiswa = async (req, res) => {
+  try {
+    const idSiswa = req.user.userId;
+
+    const siswa = await SiswaPpdb.findByPk(idSiswa, {
+      attributes: ["id_siswa", "nama_lengkap", "status", "bayar_daftar", "tahun"],
+    });
+
+    if (!siswa) {
+      return res.status(404).json({ status: "error", message: "Data siswa tidak ditemukan." });
+    }
+
+    const siswaBaru = await SiswaBaru.findOne({
+      where: { id_siswa: idSiswa },
+      include: [{ model: KelasPpdb, as: "kelas_ppdb" }],
+    });
+
+    const logPpdbList = await LogPpdb.findAll({ where: { id_siswa: idSiswa }, order: [["created_at", "DESC"]] });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Status PPDB berhasil diambil.",
+      data: {
+        siswa,
+        penempatan_kelas: siswaBaru?.kelas_ppdb || null,
+        riwayat_pembayaran: logPpdbList,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil status PPDB.", error: error.message });
+  }
+};
+
 module.exports = { dataSiswa, regisSiswa, tambahSiswaCepat, jurusan, bayarDaftar, deleteLog, bayarPpdb, logPpdb, kelas, postKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
 updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, updateLog, createMaster,
-updateMaster, deleteMaster, trfServer, backupJson, restoreJson};
+updateMaster, deleteMaster, trfServer, backupJson, restoreJson, statusPpdbSiswa};

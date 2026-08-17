@@ -1,5 +1,6 @@
 const express = require("express");
 const proteksi = require("../middleware/authMiddleware");
+const requireRole = require("../middleware/roleMiddleware");
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
@@ -35,10 +36,16 @@ const {
   deleteMaster,
   trfServer,
   backupJson,
-  restoreJson
+  restoreJson,
+  statusPpdbSiswa,
 } = require("../controllers/ppdbController");
 
 const router = express.Router();
+
+// Path top-level (bukan /siswa/...) sengaja dipakai supaya tidak tertabrak
+// pola /siswa/:tahun/:status? di bawah (Express akan mencocokkan :tahun
+// dengan literal "status" kalau pakai /siswa/status).
+router.get("/status-siswa", proteksi, requireRole("siswa"), statusPpdbSiswa);
 
 /* =========================
    UPLOAD BUKTI PEMBAYARAN

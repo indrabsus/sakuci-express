@@ -1,4 +1,4 @@
-const { AbsenKelas, AbsenKelasDetail, PembagianMengajar, SiswaPpdb, RiwayatKelas } = require("../models");
+const { AbsenKelas, AbsenKelasDetail, PembagianMengajar, SiswaPpdb, RiwayatKelas, MataPelajaran } = require("../models");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
@@ -231,4 +231,36 @@ const ringkasanHariIni = async (req, res) => {
   }
 };
 
-module.exports = { daftarRiwayat, rosterAbsen, simpanAbsen, rekapAbsen, hapusSesi, ringkasanHariIni };
+// Riwayat absen per-mapel milik siswa yang login sendiri (hadir/sakit/izin/
+// alpa yang dicatat guru per sesi), lintas semua kelas yang pernah diikuti -
+// tidak dibatasi ke kelas "saat ini" saja supaya riwayat semester lalu tetap
+// kelihatan.
+const riwayatAbsenSiswa = async (req, res) => {
+  try {
+    const rows = await AbsenKelasDetail.findAll({
+      where: { id_siswa: req.user.userId },
+      include: [
+        {
+          model: AbsenKelas,
+          as: "absen_kelas",
+          attributes: ["tanggal"],
+          include: [
+            {
+              model: PembagianMengajar,
+              as: "pengajaran",
+              attributes: ["tingkat", "nama_kelas"],
+              include: [{ model: MataPelajaran, as: "mapel", attributes: ["nama_pelajaran"] }],
+            },
+          ],
+        },
+      ],
+      order: [[{ model: AbsenKelas, as: "absen_kelas" }, "tanggal", "DESC"]],
+    });
+
+    return res.status(200).json({ status: "success", message: "Riwayat absen berhasil diambil.", data: rows });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil riwayat absen.", error: error.message });
+  }
+};
+
+module.exports = { daftarRiwayat, rosterAbsen, simpanAbsen, rekapAbsen, hapusSesi, ringkasanHariIni, riwayatAbsenSiswa };

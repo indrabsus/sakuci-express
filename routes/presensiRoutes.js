@@ -5,11 +5,13 @@ const {
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,
   uidSaya,
+  riwayatHarianSiswa,
 } = require('../controllers/presensiController');
 const router = express.Router();
 const proteksi = require('../middleware/authMiddleware'); // Import middleware untuk verifikasi JWT
 const requireRole = require('../middleware/roleMiddleware');
 
+router.get('/siswa/riwayat-harian', proteksi, requireRole('siswa'), riwayatHarianSiswa);
 router.put('/updateharian/:id_harian', proteksi,updateHarian);
 router.delete('/deleteharian/:id_harian', proteksi,deleteHarian);
 router.get('/detailharian/:id_harian',proteksi, detailHarian);
