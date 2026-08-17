@@ -41,6 +41,7 @@ module.exports = (sequelize, DataTypes) => {
     PembagianMengajar.belongsTo(models.TahunAjaran, { foreignKey: 'id_tahun_ajaran', as: 'tahun_ajaran' });
     PembagianMengajar.hasMany(models.MateriAjar, { foreignKey: 'id_pengajaran', as: 'materi' });
     PembagianMengajar.hasMany(models.Tugas, { foreignKey: 'id_pengajaran', as: 'tugas' });
+    PembagianMengajar.hasMany(models.NilaiManual, { foreignKey: 'id_pengajaran', as: 'nilai_manual' });
   };
 
   return PembagianMengajar;
