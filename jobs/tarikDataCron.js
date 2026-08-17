@@ -1,11 +1,9 @@
-const axios = require("axios");
 const { TarikDataLog } = require("../models");
-
-const TARIK_DATA_URL = "https://sakuci.id/tarikdata";
+const { jalankanTarikSemuaMesin } = require("../controllers/presensiController");
 
 const runTarikDataScheduled = async () => {
   try {
-    const { data } = await axios.get(TARIK_DATA_URL, { timeout: 60000 });
+    const data = await jalankanTarikSemuaMesin();
     if (!data?.success) {
       throw new Error(data?.message || "Response tidak menandakan sukses.");
     }

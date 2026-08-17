@@ -1,5 +1,5 @@
 // controllers/rfidController.js
-const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas, Absen, User, DataUser, Role } = require('../models');
+const { AbsenHarianSiswa, SiswaPpdb, SiswaBaru, KelasPpdb, RiwayatKelas, Absen, User, DataUser, Role, MasterRfid } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const dayjs = require('dayjs');
 require('dayjs/locale/id');
@@ -440,118 +440,171 @@ const logRfid = async (req, res) => {
   }
 };
 
+// Dipakai bareng oleh endpoint tarik satu mesin (tarik) dan tarik semua
+// mesin sekaligus (tarikSemuaMesin) - satu tempat untuk logika ambil data
+// mentah dari mesin, parse, simpan ke absen_harian_siswa, lalu clear mesin.
+async function tarikDariMesin(ip, mesin) {
+  if (!ip || !mesin) {
+    const err = new Error("IP atau mesin tidak ada");
+    err.isValidasi = true;
+    throw err;
+  }
+
+  const url = `http://${ip}/${mesin}`;
+
+  // 🔥 ambil data dari mesin
+  const response = await fetch(url);
+  const text = await response.text();
+
+  console.log("RAW DATA:", text);
+
+  // 🔥 ambil semua object {...} (ANTI JSON RUSAK)
+  const matches = text.match(/{[^}]*}/g);
+
+  if (!matches) {
+    throw new Error("Tidak ada data valid dari mesin");
+  }
+
+  let rfidData = [];
+
+  for (let item of matches) {
+    try {
+      const cleanItem = item
+        .replace(/,\s*}/g, "}") // hapus koma sebelum }
+        .trim();
+
+      const obj = JSON.parse(cleanItem);
+
+      if (obj.uid && obj.timestamp) {
+        rfidData.push(obj);
+      }
+
+    } catch (err) {
+      console.log("SKIP DATA RUSAK:", item);
+    }
+  }
+
+  if (rfidData.length === 0) {
+    throw new Error("Semua data dari mesin rusak");
+  }
+
+  // 🔁 proses data ke database
+  for (let d of rfidData) {
+    const uid = d.uid;
+    const timestamp = new Date(d.timestamp);
+
+    if (isNaN(timestamp)) continue;
+
+    // skip weekend
+    const day = timestamp.getDay();
+    if (day === 0 || day === 6) continue;
+
+    // cari siswa
+    const siswa = await SiswaPpdb.findOne({
+      where: { no_rfid: uid }
+    });
+
+    if (!siswa) continue;
+
+    // range 1 hari
+    const startDay = new Date(timestamp);
+    startDay.setHours(0, 0, 0, 0);
+
+    const endDay = new Date(timestamp);
+    endDay.setHours(23, 59, 59, 999);
+
+    // cek duplikat
+    const sudahAda = await AbsenHarianSiswa.findOne({
+      where: {
+        id_siswa: siswa.id_siswa,
+        waktu: {
+          [Op.between]: [startDay, endDay]
+        }
+      }
+    });
+
+    if (sudahAda) continue;
+
+    // simpan
+    await AbsenHarianSiswa.create({
+      id_siswa: siswa.id_siswa,
+      status: "0",
+      waktu: timestamp
+    });
+  }
+
+  // 🔥 clear data di mesin
+  try {
+    await fetch(`http://${ip}/clear/${mesin}`);
+  } catch (err) {
+    console.log("Gagal clear mesin:", err.message);
+  }
+
+  return { total: rfidData.length };
+}
+
 const tarik = async (req, res) => {
   try {
     const { ip, mesin } = req.params;
-
-    if (!ip || !mesin) {
-      return res.json({ message: "IP atau mesin tidak ada" });
-    }
-
-    const url = `http://${ip}/${mesin}`;
-
-    // 🔥 ambil data dari mesin
-    const response = await fetch(url);
-    const text = await response.text();
-
-    console.log("RAW DATA:", text);
-
-    // 🔥 ambil semua object {...} (ANTI JSON RUSAK)
-    const matches = text.match(/{[^}]*}/g);
-
-    if (!matches) {
-      return res.status(500).json({
-        message: "Tidak ada data valid dari mesin"
-      });
-    }
-
-    let rfidData = [];
-
-    for (let item of matches) {
-      try {
-        const cleanItem = item
-          .replace(/,\s*}/g, "}") // hapus koma sebelum }
-          .trim();
-
-        const obj = JSON.parse(cleanItem);
-
-        if (obj.uid && obj.timestamp) {
-          rfidData.push(obj);
-        }
-
-      } catch (err) {
-        console.log("SKIP DATA RUSAK:", item);
-      }
-    }
-
-    if (rfidData.length === 0) {
-      return res.status(500).json({
-        message: "Semua data dari mesin rusak"
-      });
-    }
-
-    // 🔁 proses data ke database
-    for (let d of rfidData) {
-      const uid = d.uid;
-      const timestamp = new Date(d.timestamp);
-
-      if (isNaN(timestamp)) continue;
-
-      // skip weekend
-      const day = timestamp.getDay();
-      if (day === 0 || day === 6) continue;
-
-      // cari siswa
-      const siswa = await SiswaPpdb.findOne({
-        where: { no_rfid: uid }
-      });
-
-      if (!siswa) continue;
-
-      // range 1 hari
-      const startDay = new Date(timestamp);
-      startDay.setHours(0, 0, 0, 0);
-
-      const endDay = new Date(timestamp);
-      endDay.setHours(23, 59, 59, 999);
-
-      // cek duplikat
-      const sudahAda = await AbsenHarianSiswa.findOne({
-        where: {
-          id_siswa: siswa.id_siswa,
-          waktu: {
-            [Op.between]: [startDay, endDay]
-          }
-        }
-      });
-
-      if (sudahAda) continue;
-
-      // simpan
-      await AbsenHarianSiswa.create({
-        id_siswa: siswa.id_siswa,
-        status: "0",
-        waktu: timestamp
-      });
-    }
-
-    // 🔥 clear data di mesin
-    try {
-      await fetch(`http://${ip}/clear/${mesin}`);
-    } catch (err) {
-      console.log("Gagal clear mesin:", err.message);
-    }
+    const hasil = await tarikDariMesin(ip, mesin);
 
     return res.json({
       message: "Data berhasil ditarik",
-      total: rfidData.length
+      total: hasil.total
     });
 
   } catch (err) {
+    if (err.isValidasi) {
+      return res.json({ message: err.message });
+    }
     return res.status(500).json({
-      message: "Terjadi kesalahan server",
+      message: err.message.includes("mesin") ? err.message : "Terjadi kesalahan server",
       error: err.message
     });
+  }
+};
+
+// Setara endpoint eksternal https://sakuci.id/tarikdata - dipanggil baik dari
+// route GET /tarikdata maupun langsung dari jobs/tarikDataCron.js (tanpa
+// bulak-balik HTTP ke server sendiri). Menarik data dari SEMUA mesin RFID
+// berfungsi "absen" yang terdaftar di master_rfid sekaligus.
+async function jalankanTarikSemuaMesin() {
+  const mesinList = await MasterRfid.findAll({ where: { fungsi: "absen" } });
+
+  if (mesinList.length === 0) {
+    return { success: false, message: "Belum ada mesin absen yang terdaftar di master_rfid.", detail: [] };
+  }
+
+  const detail = [];
+
+  for (const mesin of mesinList) {
+    try {
+      const hasil = await tarikDariMesin(mesin.ip_address, mesin.kode_mesin);
+      detail.push({ kode_mesin: mesin.kode_mesin, success: true, total: hasil.total });
+    } catch (err) {
+      detail.push({ kode_mesin: mesin.kode_mesin, success: false, message: err.message });
+    }
+  }
+
+  const totalSukses = detail.filter((d) => d.success).length;
+  const totalGagal = detail.length - totalSukses;
+  const totalData = detail.reduce((sum, d) => sum + (d.total || 0), 0);
+
+  return {
+    success: totalGagal === 0,
+    message: `Tarik data selesai: ${totalSukses} mesin sukses, ${totalGagal} gagal, ${totalData} data diproses.`,
+    detail,
+  };
+}
+
+// Sengaja tidak diproteksi JWT (dipanggil oleh cron/scheduler tanpa token),
+// sama seperti kontrak endpoint eksternal lama.
+const tarikSemuaMesin = async (req, res) => {
+  try {
+    const hasil = await jalankanTarikSemuaMesin();
+    return res.json(hasil);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Gagal menarik data.", error: error.message });
   }
 };
 
@@ -1011,4 +1064,6 @@ module.exports = {
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,
   uidSaya,
+  tarikSemuaMesin,
+  jalankanTarikSemuaMesin,
 };
