@@ -1,9 +1,9 @@
 const { TarikDataLog } = require("../models");
-const { jalankanTarikSemuaMesin } = require("../controllers/presensiController");
+const { jalankanTarikDataFp } = require("../controllers/tarikDataFpController");
 
 const runTarikDataScheduled = async () => {
   try {
-    const data = await jalankanTarikSemuaMesin();
+    const data = await jalankanTarikDataFp();
     if (!data?.success) {
       throw new Error(data?.message || "Response tidak menandakan sukses.");
     }

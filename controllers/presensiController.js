@@ -441,7 +441,7 @@ const logRfid = async (req, res) => {
 };
 
 // Dipakai bareng oleh endpoint tarik satu mesin (tarik) dan tarik semua
-// mesin sekaligus (tarikSemuaMesin) - satu tempat untuk logika ambil data
+// mesin sekaligus (tarikDataRfid) - satu tempat untuk logika ambil data
 // mentah dari mesin, parse, simpan ke absen_harian_siswa, lalu clear mesin.
 async function tarikDariMesin(ip, mesin) {
   if (!ip || !mesin) {
@@ -564,11 +564,12 @@ const tarik = async (req, res) => {
   }
 };
 
-// Setara endpoint eksternal https://sakuci.id/tarikdata - dipanggil baik dari
-// route GET /tarikdata maupun langsung dari jobs/tarikDataCron.js (tanpa
+// Tarik data absensi dari kartu RFID (bukan fingerprint - lihat
+// tarikDataFpController.js untuk itu). Dipanggil baik dari route
+// GET /tarikdatarfid maupun langsung dari jobs/tarikDataCron.js (tanpa
 // bulak-balik HTTP ke server sendiri). Menarik data dari SEMUA mesin RFID
 // berfungsi "absen" yang terdaftar di master_rfid sekaligus.
-async function jalankanTarikSemuaMesin() {
+async function jalankanTarikDataRfid() {
   const mesinList = await MasterRfid.findAll({ where: { fungsi: "absen" } });
 
   if (mesinList.length === 0) {
@@ -599,9 +600,9 @@ async function jalankanTarikSemuaMesin() {
 
 // Sengaja tidak diproteksi JWT (dipanggil oleh cron/scheduler tanpa token),
 // sama seperti kontrak endpoint eksternal lama.
-const tarikSemuaMesin = async (req, res) => {
+const tarikDataRfid = async (req, res) => {
   try {
-    const hasil = await jalankanTarikSemuaMesin();
+    const hasil = await jalankanTarikDataRfid();
     return res.json(hasil);
   } catch (error) {
     return res.status(500).json({ success: false, message: "Gagal menarik data.", error: error.message });
@@ -1064,6 +1065,6 @@ module.exports = {
   rekapBulananGuru, rekapBulananTendik,
   createAbsenGuru, updateAbsenGuru, deleteAbsenGuru,
   uidSaya,
-  tarikSemuaMesin,
-  jalankanTarikSemuaMesin,
+  tarikDataRfid,
+  jalankanTarikDataRfid,
 };
