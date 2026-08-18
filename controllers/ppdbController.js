@@ -1,7 +1,9 @@
 const {SiswaPpdb, JurusanPpdb, MasterPpdb, LogPpdb, KelasPpdb, SiswaBaru} = require('../models'); // Pastikan path benar
+const { Op } = require('sequelize');
 const {axios, axiosInstance} = require('../config/axios');
 const moment = require('moment');
 const fs = require("fs");
+const bcrypt = require('bcrypt');
 const catatLogAktivitas = require('../utils/catatLogAktivitas');
 const path = require("path");
 
@@ -608,6 +610,71 @@ const trfServer = async (req, res) => {
       message: "Gagal memperbarui data.",
       error: error.message,
     });
+  }
+};
+
+const updateUsernameSiswa = async (req, res) => {
+  const { id_siswa, username } = req.body;
+  const usernameBaru = String(username || "").trim();
+
+  try {
+    if (!id_siswa || !usernameBaru) {
+      return res.status(400).json({ status: "error", message: "Siswa dan username baru wajib diisi." });
+    }
+
+    const siswa = await SiswaPpdb.findByPk(id_siswa);
+    if (!siswa) {
+      return res.status(404).json({ status: "error", message: "Data siswa tidak ditemukan." });
+    }
+
+    const usernameLama = siswa.username;
+    if (usernameBaru === usernameLama) {
+      return res.status(200).json({ status: "success", message: "Username tidak berubah." });
+    }
+
+    const sudahDipakai = await SiswaPpdb.findOne({
+      where: { username: usernameBaru, id_siswa: { [Op.ne]: id_siswa } },
+    });
+    if (sudahDipakai) {
+      return res.status(400).json({ status: "error", message: "Username sudah dipakai siswa lain." });
+    }
+
+    await siswa.update({ username: usernameBaru });
+
+    catatLogAktivitas(req, {
+      modul: "siswa",
+      aksi: "update",
+      keterangan: `Mengubah username siswa ${siswa.nama_lengkap}: "${usernameLama}" -> "${usernameBaru}"`,
+    });
+
+    return res.status(200).json({ status: "success", message: "Username berhasil diubah." });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengubah username.", error: error.message });
+  }
+};
+
+const resetPasswordSiswa = async (req, res) => {
+  try {
+    const { id_siswa } = req.params;
+
+    const siswa = await SiswaPpdb.findByPk(id_siswa);
+    if (!siswa) {
+      return res.status(404).json({ status: "error", message: "Data siswa tidak ditemukan." });
+    }
+
+    const defaultPassword = "123456";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    await siswa.update({ password: hashedPassword });
+
+    catatLogAktivitas(req, {
+      modul: "siswa",
+      aksi: "update",
+      keterangan: `Reset password siswa ${siswa.nama_lengkap} ke default (${defaultPassword})`,
+    });
+
+    return res.status(200).json({ status: "success", message: `Password berhasil direset ke default (${defaultPassword}).` });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mereset password.", error: error.message });
   }
 };
 
@@ -1510,4 +1577,5 @@ const statusPpdbSiswa = async (req, res) => {
 
 module.exports = { dataSiswa, regisSiswa, tambahSiswaCepat, jurusan, bayarDaftar, deleteLog, bayarPpdb, logPpdb, kelas, postKelas, createJurusan, masterPpdb, updateJurusan, deleteJurusan, createKelas, siswaKelas, updateSiswa, deleteKelasSiswa,
 updateKelas, deleteKelas, hitungSiswa, deleteSiswa, leaveSiswa, updateLog, createMaster,
-updateMaster, deleteMaster, trfServer, backupJson, restoreJson, statusPpdbSiswa};
+updateMaster, deleteMaster, trfServer, backupJson, restoreJson, statusPpdbSiswa,
+updateUsernameSiswa, resetPasswordSiswa};

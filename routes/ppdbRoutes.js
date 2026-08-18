@@ -38,6 +38,8 @@ const {
   backupJson,
   restoreJson,
   statusPpdbSiswa,
+  updateUsernameSiswa,
+  resetPasswordSiswa,
 } = require("../controllers/ppdbController");
 
 const router = express.Router();
@@ -82,6 +84,8 @@ const upload = multer({ storage });
 
 router.get("/siswa/:tahun/:status?", proteksi, dataSiswa);
 router.put("/updatesiswa", proteksi, updateSiswa);
+router.put("/updateusernamesiswa", proteksi, updateUsernameSiswa);
+router.put("/resetpasswordsiswa/:id_siswa", proteksi, resetPasswordSiswa);
 router.delete("/deletesiswa", proteksi, deleteSiswa);
 router.post("/undursiswa", proteksi, leaveSiswa);
 
