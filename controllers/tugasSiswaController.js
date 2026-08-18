@@ -236,23 +236,29 @@ const submitTugasSiswa = async (req, res) => {
           jawabanSiswa?.kategori_jawaban && typeof jawabanSiswa.kategori_jawaban === "object" ? jawabanSiswa.kategori_jawaban : {};
         const opsiSoal = soal.opsi || [];
         let benarCount = 0;
-
-        opsiSoal.forEach((o) => {
+        const hasilPerOpsi = opsiSoal.map((o) => {
           const tebakan = kategoriJawaban[o.id_opsi] ? String(kategoriJawaban[o.id_opsi]).trim() : null;
           const benar = !!tebakan && tebakan === String(o.kategori || "").trim();
           if (benar) benarCount += 1;
-          rowsJawaban.push({
-            id_pengumpulan: pengumpulan.id_pengumpulan,
-            id_soal: soal.id_soal,
-            id_opsi: o.id_opsi,
-            jawaban_text: tebakan,
-            is_benar: tebakan ? benar : null,
-            nilai: null,
-          });
+          return { opsi: o, tebakan, benar };
         });
 
         const skor = opsiSoal.length > 0 ? Math.round((benarCount / opsiSoal.length) * 100) : 0;
         skorPerSoal.push({ bobot, skor });
+
+        // Simpan skor soal ini di tiap baris (sama seperti pg_mcma) supaya
+        // bisa dipakai lagi saat guru menghitung ulang nilai akhir (mis.
+        // setelah menilai essay).
+        hasilPerOpsi.forEach(({ opsi, tebakan, benar }) => {
+          rowsJawaban.push({
+            id_pengumpulan: pengumpulan.id_pengumpulan,
+            id_soal: soal.id_soal,
+            id_opsi: opsi.id_opsi,
+            jawaban_text: tebakan,
+            is_benar: tebakan ? benar : null,
+            nilai: skor,
+          });
+        });
       } else {
         // essay - menunggu penilaian manual
         adaPenilaianManual = true;

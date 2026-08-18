@@ -9,6 +9,9 @@ const {
   daftarSoalTugas,
   tambahSoalTugas,
   hapusSoalTugas,
+  daftarPengumpulan,
+  detailPengumpulan,
+  nilaiPengumpulan,
 } = require("../controllers/tugasController");
 
 const router = express.Router();
@@ -21,5 +24,9 @@ router.delete("/:id", proteksi, requireRole("guru"), hapusTugas);
 router.get("/:id/soal", proteksi, requireRole("guru"), daftarSoalTugas);
 router.post("/:id/soal", proteksi, requireRole("guru"), tambahSoalTugas);
 router.delete("/soal/:idTugasSoal", proteksi, requireRole("guru"), hapusSoalTugas);
+
+router.get("/:id/pengumpulan", proteksi, requireRole("guru"), daftarPengumpulan);
+router.get("/:id/pengumpulan/:idPengumpulan", proteksi, requireRole("guru"), detailPengumpulan);
+router.put("/:id/pengumpulan/:idPengumpulan/nilai", proteksi, requireRole("guru"), nilaiPengumpulan);
 
 module.exports = router;

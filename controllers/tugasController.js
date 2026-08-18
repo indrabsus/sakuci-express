@@ -1,4 +1,4 @@
-const { Tugas, TugasSoal, PembagianMengajar, MataPelajaran, BankSoal } = require("../models");
+const { Tugas, TugasSoal, PembagianMengajar, MataPelajaran, BankSoal, OpsiJawaban, PengumpulanTugas, JawabanTugasSiswa, SiswaPpdb } = require("../models");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
@@ -198,6 +198,132 @@ const hapusSoalTugas = async (req, res) => {
   }
 };
 
+// Daftar siswa yang sudah mengumpulkan (atau sedang mengerjakan) tugas ini -
+// dipakai guru untuk melihat siapa saja yang sudah kirim jawaban.
+const daftarPengumpulan = async (req, res) => {
+  try {
+    const tugas = await ambilTugasMilikGuru(req, req.params.id);
+    if (!tugas) {
+      return res.status(404).json({ status: "error", message: "Tugas tidak ditemukan." });
+    }
+
+    const rows = await PengumpulanTugas.findAll({
+      where: { id_tugas: tugas.id_tugas },
+      include: [{ model: SiswaPpdb, as: "siswa", attributes: ["nama_lengkap", "nisn"] }],
+      order: [["selesai_at", "DESC"]],
+    });
+
+    return res.status(200).json({ status: "success", message: "Daftar pengumpulan berhasil diambil.", data: rows });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil daftar pengumpulan.", error: error.message });
+  }
+};
+
+// Jawaban lengkap satu siswa untuk tugas ini - termasuk kunci jawaban
+// (is_benar/kategori asli) supaya guru bisa mengoreksi, dan buat memeriksa
+// jawaban essay yang perlu dinilai manual.
+const detailPengumpulan = async (req, res) => {
+  try {
+    const tugas = await ambilTugasMilikGuru(req, req.params.id);
+    if (!tugas) {
+      return res.status(404).json({ status: "error", message: "Tugas tidak ditemukan." });
+    }
+
+    const pengumpulan = await PengumpulanTugas.findOne({
+      where: { id_pengumpulan: req.params.idPengumpulan, id_tugas: tugas.id_tugas },
+      include: [{ model: SiswaPpdb, as: "siswa", attributes: ["nama_lengkap", "nisn"] }],
+    });
+
+    if (!pengumpulan) {
+      return res.status(404).json({ status: "error", message: "Pengumpulan tidak ditemukan." });
+    }
+
+    const soalList = await TugasSoal.findAll({
+      where: { id_tugas: tugas.id_tugas },
+      include: [{ model: BankSoal, as: "soal", include: [{ model: OpsiJawaban, as: "opsi" }] }],
+      order: [["nomor", "ASC"]],
+    });
+
+    const jawabanList = await JawabanTugasSiswa.findAll({ where: { id_pengumpulan: pengumpulan.id_pengumpulan } });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Detail pengumpulan berhasil diambil.",
+      data: { tugas, pengumpulan, soal: soalList, jawaban: jawabanList },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: "Gagal mengambil detail pengumpulan.", error: error.message });
+  }
+};
+
+// Guru memberi nilai untuk soal essay (yang tidak bisa dinilai otomatis),
+// lalu nilai akhir dihitung ulang: rata-rata tertimbang seluruh soal
+// (auto-graded + essay yang baru dinilai), status jadi "dinilai".
+const nilaiPengumpulan = async (req, res) => {
+  const t = await PengumpulanTugas.sequelize.transaction();
+
+  try {
+    const tugas = await ambilTugasMilikGuru(req, req.params.id);
+    if (!tugas) {
+      await t.rollback();
+      return res.status(404).json({ status: "error", message: "Tugas tidak ditemukan." });
+    }
+
+    const pengumpulan = await PengumpulanTugas.findOne({
+      where: { id_pengumpulan: req.params.idPengumpulan, id_tugas: tugas.id_tugas },
+    });
+
+    if (!pengumpulan) {
+      await t.rollback();
+      return res.status(404).json({ status: "error", message: "Pengumpulan tidak ditemukan." });
+    }
+    if (pengumpulan.status === "dikerjakan") {
+      await t.rollback();
+      return res.status(409).json({ status: "error", message: "Siswa belum mengumpulkan tugas ini." });
+    }
+
+    const nilaiEssayInput = Array.isArray(req.body?.nilai_essay) ? req.body.nilai_essay : [];
+    const nilaiMap = new Map(nilaiEssayInput.map((n) => [n.id_soal, Number(n.nilai)]));
+
+    const soalList = await TugasSoal.findAll({ where: { id_tugas: tugas.id_tugas }, include: [{ model: BankSoal, as: "soal" }] });
+    const jawabanList = await JawabanTugasSiswa.findAll({ where: { id_pengumpulan: pengumpulan.id_pengumpulan } });
+
+    let totalBobot = 0;
+    let totalSkor = 0;
+
+    for (const ts of soalList) {
+      const bobot = ts.bobot || 1;
+      totalBobot += bobot;
+
+      if (ts.soal.tipe_soal === "essay") {
+        const nilaiBaru = nilaiMap.has(ts.soal.id_soal) ? Math.max(0, Math.min(100, nilaiMap.get(ts.soal.id_soal))) : null;
+        if (nilaiBaru === null || Number.isNaN(nilaiBaru)) {
+          await t.rollback();
+          return res.status(400).json({ status: "error", message: "Semua soal essay wajib diberi nilai." });
+        }
+        await JawabanTugasSiswa.update(
+          { nilai: nilaiBaru },
+          { where: { id_pengumpulan: pengumpulan.id_pengumpulan, id_soal: ts.soal.id_soal }, transaction: t }
+        );
+        totalSkor += nilaiBaru * bobot;
+      } else {
+        const jawabanSoal = jawabanList.find((j) => j.id_soal === ts.soal.id_soal);
+        totalSkor += (Number(jawabanSoal?.nilai) || 0) * bobot;
+      }
+    }
+
+    const nilaiAkhir = totalBobot > 0 ? Math.round((totalSkor / totalBobot) * 100) / 100 : null;
+
+    await pengumpulan.update({ status: "dinilai", nilai: nilaiAkhir }, { transaction: t });
+    await t.commit();
+
+    return res.status(200).json({ status: "success", message: "Nilai berhasil disimpan.", data: { nilai: nilaiAkhir } });
+  } catch (error) {
+    await t.rollback();
+    return res.status(500).json({ status: "error", message: "Gagal menyimpan nilai.", error: error.message });
+  }
+};
+
 module.exports = {
   daftarTugas,
   buatTugas,
@@ -206,4 +332,7 @@ module.exports = {
   daftarSoalTugas,
   tambahSoalTugas,
   hapusSoalTugas,
+  daftarPengumpulan,
+  detailPengumpulan,
+  nilaiPengumpulan,
 };
