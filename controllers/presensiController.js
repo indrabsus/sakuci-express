@@ -662,9 +662,14 @@ const listAbsenStaf = (idRole) => async (req, res) => {
 const absenGuru = listAbsenStaf(6);
 const absenTendik = listAbsenStaf(7);
 
+// Kode akses untuk membuka kunci keterangan "Diisi oleh piket" - divalidasi
+// di sini (bukan cuma di frontend) supaya tidak bisa dilewati dengan
+// memanipulasi request langsung.
+const KODE_AKSES_KETERANGAN_PIKET = '123oke';
+
 const createAbsenGuru = async (req, res) => {
   try {
-    const { id_user, status, waktu, keterangan } = req.body;
+    const { id_user, status, waktu, keterangan, kode_akses } = req.body;
 
     if (!id_user || !status || !waktu) {
       return res.status(400).json({
@@ -673,11 +678,14 @@ const createAbsenGuru = async (req, res) => {
       });
     }
 
-    // Piket (role 'manajemen') boleh input Hadir manual, tapi keterangannya
-    // dikunci ke teks baku agar jelas itu bukan hasil scan RFID. Admin bebas isi sendiri.
-    const isPiket = req.user?.role === 'manajemen';
+    // Piket boleh input Hadir manual, tapi keterangannya dikunci ke teks
+    // baku agar jelas itu bukan hasil scan RFID - kecuali kode_akses yang
+    // benar disertakan, baru boleh isi keterangan sendiri. Admin bebas isi
+    // sendiri tanpa kode.
+    const isPiket = req.user?.role === 'manajemen' || req.user?.role === 'piket';
+    const kodeAksesValid = kode_akses === KODE_AKSES_KETERANGAN_PIKET;
     const finalKeterangan =
-      isPiket && status === '0' ? 'Diisi oleh piket' : keterangan || null;
+      isPiket && status === '0' && !kodeAksesValid ? 'Diisi oleh piket' : keterangan || null;
 
     const data = await Absen.create({
       id_user,
@@ -703,7 +711,7 @@ const createAbsenGuru = async (req, res) => {
 const updateAbsenGuru = async (req, res) => {
   try {
     const { id_absen } = req.params;
-    const { status, waktu, keterangan } = req.body;
+    const { status, waktu, keterangan, kode_akses } = req.body;
 
     const data = await Absen.findByPk(id_absen);
     if (!data) {
@@ -714,9 +722,10 @@ const updateAbsenGuru = async (req, res) => {
     }
 
     const finalStatus = status !== undefined ? status : data.status;
-    const isPiket = req.user?.role === 'manajemen';
+    const isPiket = req.user?.role === 'manajemen' || req.user?.role === 'piket';
+    const kodeAksesValid = kode_akses === KODE_AKSES_KETERANGAN_PIKET;
     const finalKeterangan =
-      isPiket && finalStatus === '0' ? 'Diisi oleh piket' : keterangan;
+      isPiket && finalStatus === '0' && !kodeAksesValid ? 'Diisi oleh piket' : keterangan;
 
     await data.update({
       ...(status !== undefined && { status }),
