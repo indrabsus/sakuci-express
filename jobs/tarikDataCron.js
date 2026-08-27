@@ -1,9 +1,15 @@
+const axios = require("axios");
 const { TarikDataLog } = require("../models");
-const { jalankanTarikDataFp } = require("../controllers/tarikDataFpController");
+
+// Kembali pakai endpoint lama sakuci.id/tarikdata (PHP/Laravel) - endpoint
+// lokal /tarikdatafp sempat dipakai tapi belum bisa dipercaya membedakan
+// masuk/pulang, jadi cron dikembalikan ke endpoint lama yang sudah terbukti
+// benar, sama seperti tombol "Tarik Data" manual di dashboard.
+const TARIK_DATA_URL = "https://sakuci.id/tarikdata";
 
 const runTarikDataScheduled = async () => {
   try {
-    const data = await jalankanTarikDataFp();
+    const { data } = await axios.get(TARIK_DATA_URL, { timeout: 60000 });
     if (!data?.success) {
       throw new Error(data?.message || "Response tidak menandakan sukses.");
     }
