@@ -47,9 +47,11 @@ async function connectZk(ip) {
 
 // CATATAN: library zklib-js yang dipakai di sini cuma expose deviceUserId +
 // recordTime per catatan absen (tidak ada field "type"/state check-in vs
-// check-out seperti punya library PHP ZKTeco) - jadi semua catatan untuk
-// sementara disimpan sebagai status "0" (masuk), belum bisa membedakan
-// pulang seperti versi PHP (status 0/4).
+// check-out seperti punya library PHP ZKTeco). Sebagai gantinya, scan
+// pertama seorang user di suatu hari dianggap masuk (status "0") dan scan
+// berikutnya di hari yang sama dianggap pulang (status "4") - kalau ada
+// beberapa scan pulang (mis. kepencet dua kali), waktu pulang yang dicatat
+// diperbarui ke scan paling akhir.
 async function tarikDariMesinFp(ip) {
   const zk = await connectZk(ip);
   let total = 0;
@@ -58,7 +60,13 @@ async function tarikDariMesinFp(ip) {
     const attendance = await zk.getAttendances();
     const records = attendance?.data || [];
 
-    for (const d of records) {
+    // urutkan dulu berdasarkan waktu supaya scan pertama di hari itu selalu
+    // diproses lebih dulu (jadi pasti kebagian status masuk)
+    const sorted = [...records].sort(
+      (a, b) => new Date(a.recordTime) - new Date(b.recordTime)
+    );
+
+    for (const d of sorted) {
       const waktu = new Date(d.recordTime);
       if (isNaN(waktu)) continue;
 
@@ -69,12 +77,20 @@ async function tarikDariMesinFp(ip) {
       const dataUser = await DataUser.findOne({ where: { uid_fp: String(d.deviceUserId) } });
       if (!dataUser) continue;
 
-      const status = "0";
-
       const startDay = new Date(waktu);
       startDay.setHours(0, 0, 0, 0);
       const endDay = new Date(waktu);
       endDay.setHours(23, 59, 59, 999);
+
+      const absenMasuk = await Absen.findOne({
+        where: {
+          id_user: dataUser.id_user,
+          status: "0",
+          waktu: { [Op.between]: [startDay, endDay] },
+        },
+      });
+
+      const status = absenMasuk ? "4" : "0";
 
       const sudahAda = await Absen.findOne({
         where: {
@@ -86,6 +102,10 @@ async function tarikDariMesinFp(ip) {
 
       if (!sudahAda) {
         await Absen.create({ id_user: dataUser.id_user, status, waktu });
+        total += 1;
+      } else if (status === "4" && waktu > sudahAda.waktu) {
+        // scan pulang lebih baru di hari yang sama - perbarui jam pulangnya
+        await sudahAda.update({ waktu });
         total += 1;
       }
     }
