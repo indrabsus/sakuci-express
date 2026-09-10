@@ -85,9 +85,10 @@ const rekapNilai = async (req, res) => {
         nilai[n.id_nilai_manual] = d?.nilai !== undefined && d?.nilai !== null ? Number(d.nilai) : null;
       });
 
-      const nilaiTerisi = Object.values(nilai).filter((n) => n !== null);
-      const rataRata = nilaiTerisi.length
-        ? Math.round((nilaiTerisi.reduce((a, b) => a + b, 0) / nilaiTerisi.length) * 100) / 100
+      const totalKolom = kolom.length;
+      const totalNilai = kolom.reduce((sum, k) => sum + (nilai[k.id] ?? 0), 0);
+      const rataRata = totalKolom > 0
+        ? Math.round((totalNilai / totalKolom) * 100) / 100
         : null;
 
       return { ...s, nilai, rata_rata: rataRata };
