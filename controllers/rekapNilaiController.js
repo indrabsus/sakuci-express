@@ -100,4 +100,97 @@ const rekapNilai = async (req, res) => {
   }
 };
 
-module.exports = { rekapNilai };
+
+const simpanRekapNilai = async (req, res) => {
+  const t = await PembagianMengajar.sequelize.transaction();
+
+  try {
+    const { id_pengajaran, updates } = req.body;
+
+    if (!id_pengajaran) {
+      await t.rollback();
+      return res.status(400).json({ status: "error", message: "Parameter id_pengajaran wajib diisi." });
+    }
+
+    const pengajaran = await ambilPengajaranMilikGuru(req, id_pengajaran);
+    if (!pengajaran) {
+      await t.rollback();
+      return res.status(403).json({ status: "error", message: "Anda tidak mengajar kelas/mapel ini." });
+    }
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ status: "error", message: "Tidak ada perubahan nilai untuk disimpan." });
+    }
+
+    const manualIdsUpdated = new Set();
+
+    for (const item of updates) {
+      const { id_siswa, id_kolom, tipe } = item;
+      if (!id_siswa || !id_kolom) continue;
+
+      const rawNilai = item.nilai;
+      const nilai = rawNilai !== null && rawNilai !== undefined && rawNilai !== "" && !Number.isNaN(Number(rawNilai))
+        ? Math.max(0, Math.min(100, Math.round(Number(rawNilai) * 100) / 100))
+        : null;
+
+      if (tipe === "manual") {
+        if (nilai === null) {
+          await NilaiManualDetail.destroy({
+            where: { id_nilai_manual: id_kolom, id_siswa },
+            transaction: t,
+          });
+        } else {
+          const [detail, created] = await NilaiManualDetail.findOrCreate({
+            where: { id_nilai_manual: id_kolom, id_siswa },
+            defaults: { id_nilai_manual: id_kolom, id_siswa, nilai },
+            transaction: t,
+          });
+          if (!created) {
+            await detail.update({ nilai }, { transaction: t });
+          }
+        }
+        manualIdsUpdated.add(id_kolom);
+      } else if (tipe === "tugas") {
+        if (nilai === null) {
+          const p = await PengumpulanTugas.findOne({
+            where: { id_tugas: id_kolom, id_siswa },
+            transaction: t,
+          });
+          if (p) {
+            await p.update({ nilai: null }, { transaction: t });
+          }
+        } else {
+          const [p, created] = await PengumpulanTugas.findOrCreate({
+            where: { id_tugas: id_kolom, id_siswa },
+            defaults: {
+              id_tugas: id_kolom,
+              id_siswa,
+              nilai,
+              status: "dinilai",
+              mulai_at: new Date(),
+              selesai_at: new Date(),
+            },
+            transaction: t,
+          });
+          if (!created) {
+            await p.update({ nilai, status: "dinilai" }, { transaction: t });
+          }
+        }
+      }
+    }
+
+    for (const id_nilai_manual of manualIdsUpdated) {
+      await NilaiManual.update({ updated_at: new Date() }, { where: { id_nilai_manual }, transaction: t });
+    }
+
+    await t.commit();
+    return res.status(200).json({ status: "success", message: "Nilai berhasil disimpan." });
+  } catch (error) {
+    await t.rollback();
+    return res.status(500).json({ status: "error", message: "Gagal menyimpan rekap nilai.", error: error.message });
+  }
+};
+
+module.exports = { rekapNilai, simpanRekapNilai };
+
