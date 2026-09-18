@@ -44,6 +44,7 @@ const profileRoutes = require("./routes/profileRoutes");
 const backupRoutes = require("./routes/backupRoutes");
 const tarikDataLogRoutes = require("./routes/tarikDataLogRoutes");
 const logAktivitasRoutes = require("./routes/logAktivitasRoutes");
+const konselRoutes = require("./routes/konselRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const { initSocket } = require("./socket/chatSocket");
 
@@ -80,6 +81,7 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/konsel", konselRoutes);
 app.use("/role", roleRoutes);
 app.use("/ppdb", ppdbRoutes);
 app.use("/siswa", siswaRoutes);
