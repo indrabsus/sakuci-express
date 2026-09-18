@@ -1,6 +1,10 @@
 const { AbsenKelas, AbsenKelasDetail, PembagianMengajar, SiswaPpdb, RiwayatKelas, MataPelajaran } = require("../models");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
+  const userRole = String(req.user?.role || "").toLowerCase().trim();
+  if (userRole === "kurikulum" || userRole === "adminkurikulum" || userRole === "admin") {
+    return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran } });
+  }
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
 }
 
@@ -200,8 +204,18 @@ const hapusSesi = async (req, res) => {
 // dashboard guru (daftarRiwayat/rekapAbsen di atas sengaja per-kelas saja).
 const ringkasanHariIni = async (req, res) => {
   try {
+    const userRole = String(req.user?.role || "").toLowerCase().trim();
+    const isCurriculumOrAdmin = userRole === "kurikulum" || userRole === "adminkurikulum" || userRole === "admin";
+
+    const where = {};
+    if (!isCurriculumOrAdmin) {
+      where.id_user = req.user.userId;
+    } else if (req.query.id_user) {
+      where.id_user = req.query.id_user;
+    }
+
     const pengajaranList = await PembagianMengajar.findAll({
-      where: { id_user: req.user.userId },
+      where,
       attributes: ["id_pengajaran"],
     });
     const idPengajaranList = pengajaranList.map((p) => p.id_pengajaran);

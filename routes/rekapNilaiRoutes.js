@@ -5,7 +5,7 @@ const { rekapNilai, simpanRekapNilai } = require("../controllers/rekapNilaiContr
 
 const router = express.Router();
 
-router.get("/", proteksi, requireRole("guru"), rekapNilai);
+router.get("/", proteksi, requireRole("guru", "kurikulum", "adminkurikulum", "admin"), rekapNilai);
 router.post("/simpan", proteksi, requireRole("guru"), simpanRekapNilai);
 
 module.exports = router;

@@ -1,6 +1,10 @@
 const { PembagianMengajar, RiwayatKelas, SiswaPpdb, Tugas, PengumpulanTugas, NilaiManual, NilaiManualDetail } = require("../models");
 
 async function ambilPengajaranMilikGuru(req, idPengajaran) {
+  const userRole = String(req.user?.role || "").toLowerCase().trim();
+  if (userRole === "kurikulum" || userRole === "adminkurikulum" || userRole === "admin") {
+    return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran } });
+  }
   return PembagianMengajar.findOne({ where: { id_pengajaran: idPengajaran, id_user: req.user.userId } });
 }
 

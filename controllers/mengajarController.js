@@ -1,13 +1,38 @@
-const { PembagianMengajar, MataPelajaran, TahunAjaran, MateriAjar, Tugas } = require("../models");
+const { PembagianMengajar, MataPelajaran, TahunAjaran, MateriAjar, Tugas, User, DataUser } = require("../models");
 const { getTahunAjaranAktifNama, getIdTahunAjaran } = require("../utils/tahunAjaran");
 
 const daftarMengajar = async (req, res) => {
   try {
+    const userRole = String(req.user?.role || "").toLowerCase().trim();
+    const isCurriculumOrAdmin = userRole === "kurikulum" || userRole === "adminkurikulum" || userRole === "admin";
+
+    const where = {};
+    if (!isCurriculumOrAdmin) {
+      where.id_user = req.user.userId;
+    } else if (req.query.id_user) {
+      where.id_user = req.query.id_user;
+    }
+
+    if (req.query.tingkat) where.tingkat = req.query.tingkat;
+    if (req.query.nama_kelas) where.nama_kelas = req.query.nama_kelas;
+    if (req.query.id_mapel) where.id_mapel = req.query.id_mapel;
+
     const rows = await PembagianMengajar.findAll({
-      where: { id_user: req.user.userId },
+      where,
       include: [
         { model: MataPelajaran, as: "mapel", attributes: ["nama_pelajaran"] },
         { model: TahunAjaran, as: "tahun_ajaran", attributes: ["nama"] },
+        {
+          model: User,
+          as: "guru",
+          attributes: ["id", "username"],
+          include: [
+            {
+              model: DataUser,
+              attributes: ["nama_lengkap", "nama_singkat", "gambar"],
+            },
+          ],
+        },
       ],
       order: [["created_at", "DESC"]],
     });
