@@ -1,3 +1,5 @@
+'use strict';
+require('dotenv').config();
 const sequelize = require('./config/database');
 
 async function createChatTable() {
