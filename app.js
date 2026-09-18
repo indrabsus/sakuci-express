@@ -44,6 +44,8 @@ const profileRoutes = require("./routes/profileRoutes");
 const backupRoutes = require("./routes/backupRoutes");
 const tarikDataLogRoutes = require("./routes/tarikDataLogRoutes");
 const logAktivitasRoutes = require("./routes/logAktivitasRoutes");
+const chatRoutes = require("./routes/chatRoutes");
+const { initSocket } = require("./socket/chatSocket");
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught exception (server tetap jalan):", err);
@@ -112,6 +114,7 @@ app.use("/profile", profileRoutes);
 app.use("/backup", backupRoutes);
 app.use("/tarik-data-log", tarikDataLogRoutes);
 app.use("/log-aktivitas", logAktivitasRoutes);
+app.use("/chat", chatRoutes);
 
 app.get("/", (req, res) => {
   res.json({
@@ -129,6 +132,7 @@ cron.schedule("0 16 * * *", runTarikDataScheduled, { timezone: "Asia/Jakarta" })
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(app);
+initSocket(server);
 
 server.on("error", (err) => {
   console.error(`Gagal listen di port ${PORT}:`, err.message);
