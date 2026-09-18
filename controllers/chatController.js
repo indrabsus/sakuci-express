@@ -214,12 +214,21 @@ const getContacts = async (req, res) => {
       });
     }
 
-    // Urutkan kontak secara alfabetis
-    contacts.sort((a, b) => a.nama.localeCompare(b.nama));
+    // Urutkan kontak: yang sedang online di paling atas, lalu secara alfabetis nama
+    contacts.sort((a, b) => {
+      const aOnline = isUserOnline(a.userId) ? 1 : 0;
+      const bOnline = isUserOnline(b.userId) ? 1 : 0;
+      if (bOnline !== aOnline) {
+        return bOnline - aOnline;
+      }
+      return (a.nama || "").localeCompare(b.nama || "");
+    });
+
+    const result = roleFilter === "online" ? contacts.filter((c) => isUserOnline(c.userId)) : contacts;
 
     return res.status(200).json({
       status: "success",
-      data: contacts,
+      data: result,
     });
   } catch (error) {
     console.error("Error getContacts:", error);
