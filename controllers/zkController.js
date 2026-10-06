@@ -1,5 +1,6 @@
 // zkController.js
 const ZKLib = require("zklib-js");
+const axios = require("axios");
 const { DataUser } = require("../models");
 
 // IP mesin fingerprint absen staf/guru (2 mesin terpasang di sekolah).
@@ -170,61 +171,22 @@ const createUserZk = async (req, res) => {
     });
   }
 
-  const targetIps = ip ? [ip] : IP_MESIN_FP;
-
-  if (targetIps.length === 0) {
-    return res.status(500).json({
-      success: false,
-      message: "Belum ada IP mesin fingerprint yang dikonfigurasi.",
-    });
-  }
-
   try {
-    const detail = await Promise.all(
-      targetIps.map((targetIp) => pushUserKeMesin(targetIp, uid_fp, nama_singkat))
-    );
-
-    const totalSukses = detail.filter((d) => d.success).length;
-    const totalGagal = detail.length - totalSukses;
-    const isAllSuccess = totalGagal === 0;
-
-    const totalAlreadyExists = detail.filter((d) => d.success && d.already_exists).length;
-    const totalNewlyCreated = detail.filter((d) => d.success && !d.already_exists).length;
-
-    let message = "";
-    if (isAllSuccess) {
-      if (totalAlreadyExists === detail.length) {
-        // Semua mesin sudah ada data
-        message = `Sudah ada data UID ${uid_fp} di ${totalAlreadyExists} mesin fingerprint.`;
-      } else if (totalNewlyCreated === detail.length) {
-        // Semua mesin baru ditambahkan
-        message = `Sukses, data ${nama_singkat} (UID ${uid_fp}) berhasil ditambahkan ke ${totalNewlyCreated} mesin fingerprint.`;
-      } else {
-        // Sebagian sudah ada, sebagian baru ditambahkan
-        message = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
-      }
-    } else if (totalSukses > 0) {
-      const infoList = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
-      message = `Sebagian berhasil: ${infoList}`;
-    } else {
-      const gagalList = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
-      message = `Gagal mengirim ke semua mesin (${gagalList}).`;
-    }
-
-    return res.status(isAllSuccess ? 200 : totalSukses > 0 ? 207 : 500).json({
-      success: isAllSuccess,
-      already_exists: totalAlreadyExists > 0,
-      all_already_exists: totalAlreadyExists === detail.length,
-      newly_created: totalNewlyCreated > 0,
-      partial_exists: totalAlreadyExists > 0 && totalNewlyCreated > 0,
-      message,
-      detail,
+    const laravelBase = process.env.LARAVEL_URL || "https://sakuci.id";
+    const laravelUrl = `${laravelBase}/insertuser/${uid_fp}/${uid_fp}/${encodeURIComponent(nama_singkat)}/0/0/0?json=1`;
+    const response = await axios.get(laravelUrl, {
+      headers: { Accept: "application/json" },
+      timeout: 20000,
     });
+
+    return res.status(response.status).json(response.data);
   } catch (e) {
+    if (e.response && e.response.data) {
+      return res.status(e.response.status).json(e.response.data);
+    }
     return res.status(500).json({
       success: false,
-      message: "Gagal mengirim data ke mesin fingerprint.",
-      error: pesanErrorZk(e),
+      message: "Gagal mengirim data ke mesin fingerprint: " + (e.message || String(e)),
     });
   }
 };
