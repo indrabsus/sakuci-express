@@ -615,13 +615,17 @@ const listAbsenStaf = (idRole) => async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 500);
     const offset = (page - 1) * limit;
-    const { tanggal, search } = req.query;
+    const { tanggal, search, status } = req.query;
 
     const whereAbsen = {};
     if (tanggal) {
       const awal = dayjs(tanggal).startOf('day').format('YYYY-MM-DD HH:mm:ss');
       const akhir = dayjs(tanggal).endOf('day').format('YYYY-MM-DD HH:mm:ss');
       whereAbsen.waktu = { [Op.between]: [awal, akhir] };
+    }
+
+    if (status !== undefined && status !== null && status !== '') {
+      whereAbsen.status = String(status);
     }
 
     const data = await Absen.findAndCountAll({
