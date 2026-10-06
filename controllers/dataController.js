@@ -56,6 +56,22 @@ const updateUser = async (req, res) => {
       });
     }
 
+    // 🔎 Cek apakah UID sudah dipakai oleh user lain
+    if (updateData.uid_fp) {
+      const existingUID = await DataUser.findOne({
+        where: {
+          uid_fp: updateData.uid_fp,
+          id_data: { [Op.ne]: id_data },
+        },
+      });
+      if (existingUID) {
+        return res.status(400).json({
+          status: "error",
+          message: `UID ${updateData.uid_fp} sudah digunakan oleh ${existingUID.nama_lengkap}`,
+        });
+      }
+    }
+
     await user.update(updateData);
 
     res.status(200).json({

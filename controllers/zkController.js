@@ -69,6 +69,36 @@ async function pushUserKeMesin(ip, uid_fp, nama_singkat) {
   try {
     const run = async () => {
       await zk.createSocket();
+
+      // 1. Ambil daftar user yang ada di mesin untuk mengecek apakah UID sudah ada
+      let existingUser = null;
+      try {
+        const userList = await zk.getUsers();
+        const records = userList?.data || [];
+        const targetUid = parseInt(uid_fp, 10);
+        const targetUserId = String(uid_fp).trim();
+
+        existingUser = records.find((u) => {
+          const uUid = parseInt(u.uid, 10);
+          const uUserId = String(u.userId || "").trim();
+          return uUid === targetUid || uUserId === targetUserId;
+        });
+      } catch (errGetUsers) {
+        throw new Error(`Gagal memeriksa daftar user di mesin (${pesanErrorZk(errGetUsers)})`);
+      }
+
+      // 2. Jika UID sudah ada di mesin -> notif sudah ada data
+      if (existingUser) {
+        return {
+          ip,
+          success: true,
+          already_exists: true,
+          existing_name: existingUser.name || "",
+          message: `Sudah ada data di mesin ${ip} (UID ${uid_fp}${existingUser.name ? `: ${existingUser.name}` : ""})`,
+        };
+      }
+
+      // 3. Jika belum ada data (klo g ada data berarti sukses insert)
       const result = await zk.setUser(
         parseInt(uid_fp, 10),
         String(uid_fp).slice(0, 9),
@@ -81,20 +111,22 @@ async function pushUserKeMesin(ip, uid_fp, nama_singkat) {
       if (result === false) {
         throw new Error("Mesin menolak data user (parameter tidak valid atau melebihi batas).");
       }
-      return result;
+
+      return {
+        ip,
+        success: true,
+        already_exists: false,
+        message: `Sukses ditambahkan ke mesin ${ip}`,
+      };
     };
 
-    await withTimeout(run(), 8000, `Koneksi ke ${ip} timeout setelah 8 detik`);
-
-    return {
-      ip,
-      success: true,
-      message: "Sukses",
-    };
+    const res = await withTimeout(run(), 10000, `Koneksi ke ${ip} timeout setelah 10 detik`);
+    return res;
   } catch (err) {
     return {
       ip,
       success: false,
+      already_exists: false,
       message: pesanErrorZk(err),
     };
   } finally {
@@ -156,15 +188,24 @@ const createUserZk = async (req, res) => {
     const totalGagal = detail.length - totalSukses;
     const isAllSuccess = totalGagal === 0;
 
+    const totalAlreadyExists = detail.filter((d) => d.success && d.already_exists).length;
+    const totalNewlyCreated = detail.filter((d) => d.success && !d.already_exists).length;
+
     let message = "";
     if (isAllSuccess) {
-      message = `Berhasil mengirim ${nama_singkat} (UID ${uid_fp}) ke ${totalSukses} mesin fingerprint.`;
+      if (totalAlreadyExists === detail.length) {
+        // Semua mesin sudah ada data
+        message = `Sudah ada data UID ${uid_fp} di ${totalAlreadyExists} mesin fingerprint.`;
+      } else if (totalNewlyCreated === detail.length) {
+        // Semua mesin baru ditambahkan
+        message = `Sukses, data ${nama_singkat} (UID ${uid_fp}) berhasil ditambahkan ke ${totalNewlyCreated} mesin fingerprint.`;
+      } else {
+        // Sebagian sudah ada, sebagian baru ditambahkan
+        message = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
+      }
     } else if (totalSukses > 0) {
-      const gagalList = detail
-        .filter((d) => !d.success)
-        .map((d) => `${d.ip}: ${d.message}`)
-        .join(", ");
-      message = `Terkirim ke ${totalSukses} mesin, tetapi gagal ke ${totalGagal} mesin (${gagalList}).`;
+      const infoList = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
+      message = `Sebagian berhasil: ${infoList}`;
     } else {
       const gagalList = detail.map((d) => `${d.ip}: ${d.message}`).join(", ");
       message = `Gagal mengirim ke semua mesin (${gagalList}).`;
@@ -172,7 +213,10 @@ const createUserZk = async (req, res) => {
 
     return res.status(isAllSuccess ? 200 : totalSukses > 0 ? 207 : 500).json({
       success: isAllSuccess,
-      partial: totalSukses > 0 && totalGagal > 0,
+      already_exists: totalAlreadyExists > 0,
+      all_already_exists: totalAlreadyExists === detail.length,
+      newly_created: totalNewlyCreated > 0,
+      partial_exists: totalAlreadyExists > 0 && totalNewlyCreated > 0,
       message,
       detail,
     });
